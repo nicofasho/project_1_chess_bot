@@ -17,15 +17,12 @@ import com.stephengware.java.games.chess.state.State;
  */
 public class Cawatso3 extends Bot {
 
-	/** A random number generator */
-	private final Random random;
 	
 	/**
 	 * Constructs a new chess bot named "Cawatso3 Bot"
 	 */
 	public Cawatso3() {
 		super("Cawatso3 Bot");
-		this.random = new Random(0);
 	}
 	
 	public enum GamePhase {
@@ -34,66 +31,65 @@ public class Cawatso3 extends Bot {
 
 	@Override
 	protected State chooseMove(State root) {
-//		// This list will hold all the children nodes of the root.
-//		ArrayList<State> children = new ArrayList<>();
-//		// Generate all the children nodes of the root (that is, all the
-//		// possible next states of the game.  Make sure that we do not exceed
-//		// the number of GameTree nodes that we are allowed to generate.
-//		Iterator<State> iterator = root.next().iterator();
-//		while(!root.searchLimitReached() && iterator.hasNext())
-//			children.add(iterator.next());
-//		// Choose one of the children at random.
-//		return children.get(random.nextInt(children.size()));
-		
-		State bestMove = null;
-		double bestScore = root.player == Player.WHITE ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
-		
-		for (int depth = 1; depth <= 10; depth++) {
-			if (root.searchLimitReached()) {
-				break;
-			}
-			
-			for (State state : root.next()) {
-				double score = minimax(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, root.player == Player.WHITE);
-				if (score > bestScore) {
-					bestScore = score;
-					bestMove = state;
-				}
-			}
-		}
+		State bestMove = root;
 		
 		return bestMove;
 	}
 	
-	private double minimax(State state, int depth, double alpha, double beta, boolean maximizingPlayer) {
-        if (depth == 0 || state.over) {
-            return materialValue(state);
+	private State min_max(State state, boolean maximizingPlayer) {
+        
+		State bestMove = (maximizingPlayer) ? find_max(state) : find_min(state);
+		
+		return bestMove;
+	}
+	
+	private State find_max(State state) {
+		
+		if (state.)
+			return state;
+		
+		double bestValueSoFar = Double.NEGATIVE_INFINITY;
+		
+		ArrayList<State> children = new ArrayList<State>();
+		
+		Iterator<State> iterator = state.next().iterator();
+		
+		while (!state.searchLimitReached() && iterator.hasNext()) {
+			State child = iterator.next();
+			children.add(child);
+		}
+		
+		State value = state;
+		
+		for (State child : children) {
+			value = find_min(child);
+			value = (materialValue(value) > bestValueSoFar) ? value : state;
+			
+		}
+		return value;
+	}
+	
+	private State find_min(State state) {
+        double best = Double.POSITIVE_INFINITY;
+        
+        ArrayList<State> children = new ArrayList<State>();
+        
+        Iterator<State> iterator = state.next().iterator();
+        
+		while (!state.searchLimitReached() && iterator.hasNext()) {
+			State child = iterator.next();
+			children.add(child);
+		}
+        
+        State value = state;
+        
+        for (State child : children) {
+            value = find_max(child);
+            value = (materialValue(value) < best) ? value : state;
         }
         
-        if (maximizingPlayer) {
-        	double maxScore = Double.NEGATIVE_INFINITY;
-			for (State child : state.next()) {
-				double score = minimax(child, depth - 1, alpha, beta, maximizingPlayer);
-				maxScore = Math.max(maxScore, score);
-				alpha = Math.max(alpha, score);
-				if (beta <= alpha) {
-					break;
-				}
-			}
-			return maxScore;
-        } else {
-        	double minScore = Double.POSITIVE_INFINITY;
-        	for (State child : state.next()) {
-        		double score = minimax(child, depth - 1, alpha, beta, maximizingPlayer);
-        		minScore = Math.min(minScore,  score);
-        		beta = Math.min(beta,  minScore);
-        		if (beta <= alpha) {
-        			break;
-        		}
-        	}
-        	return minScore;
-        }
-	}
+        return value;
+    }
 	
 	private double materialValue (State state) {
 		
