@@ -38,14 +38,14 @@ public class Cawatso3 extends Bot {
 	
 	private State min_max(State state, boolean maximizingPlayer) {
         
-		State bestMove = (maximizingPlayer) ? find_max(state) : find_min(state);
+		State bestMove = (maximizingPlayer) ? find_max(state, 10) : find_min(state, 10);
 		
 		return bestMove;
 	}
 	
-	private State find_max(State state) {
+	private State find_max(State state, int depth) {
 		
-		if (state.)
+		if (state.searchLimitReached() || state.over || depth == 0)
 			return state;
 		
 		double bestValueSoFar = Double.NEGATIVE_INFINITY;
@@ -62,14 +62,17 @@ public class Cawatso3 extends Bot {
 		State value = state;
 		
 		for (State child : children) {
-			value = find_min(child);
+			value = find_min(child, depth - 1);
 			value = (materialValue(value) > bestValueSoFar) ? value : state;
 			
 		}
 		return value;
 	}
 	
-	private State find_min(State state) {
+	private State find_min(State state, int depth) {
+		if (state.searchLimitReached() || state.over || depth == 0)
+			return state;
+		
         double best = Double.POSITIVE_INFINITY;
         
         ArrayList<State> children = new ArrayList<State>();
@@ -84,7 +87,7 @@ public class Cawatso3 extends Bot {
         State value = state;
         
         for (State child : children) {
-            value = find_max(child);
+            value = find_max(child, depth - 1);
             value = (materialValue(value) < best) ? value : state;
         }
         
