@@ -27,12 +27,12 @@ public class Test {
 		Piece.load();
 		Bot[] bots = new Bot[]{
 				//new Human(),
-				new MyBot(),
+				new Cawatso3(),
 				new RandomBot(),
-				new GreedyBot(),
-				new NoviceBot(),
-				new BeginnerBot(),
-				new IntermediateBot(),
+//				new GreedyBot(),
+//				new NoviceBot(),
+//				new BeginnerBot(),
+//				new IntermediateBot(),
 		};
 		Tournament tournament = new Tournament(2, bots);
 		tournament.play();
