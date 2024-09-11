@@ -23,11 +23,11 @@ public class Cawatso3 extends Bot {
 
     @Override
     protected State chooseMove(State root) {
-    	
+
         State bestMove = root;
 
         for (int depth = 1; depth <= 6; depth++) {
-            bestMove = min_max(root, root.player == Player.WHITE, depth);
+            bestMove = min_max(root, root.player == Player.WHITE, depth).state;
 
             if (root.searchLimitReached()) {
                 break;
@@ -58,13 +58,13 @@ public class Cawatso3 extends Bot {
         } else {
             return GamePhase.ENDGAME;
         }
-    
+
     }
 
-    private State min_max(State state, boolean maximizingPlayer, int depth) {
+    private Result min_max(State state, boolean maximizingPlayer, int depth) {
 
-        return maximizingPlayer ? find_max(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY) 
-        		: find_min(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+        return maximizingPlayer ? find_max(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
+                : find_min(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
     }
 
     private boolean isMoveLegal(State state) {
@@ -103,294 +103,320 @@ public class Cawatso3 extends Bot {
         return value;
     }
 
-    private State find_max(State state, int depth, double alpha, double beta) {
-        if (state.searchLimitReached() || depth == 0 || state.over) {
-            return state;
-        }
-        
+    private Result find_max(State state, int depth, double alpha, double beta) {
+
         queenCount.clear();
         rookCount.clear();
 
-        double bestValueSoFar = Double.NEGATIVE_INFINITY;
+        Result bestValueSoFar = new Result(state, Double.NEGATIVE_INFINITY);
+
+        if (state.searchLimitReached() || depth == 0) {
+            return bestValueSoFar;
+        }
+
+        if (state.over) {
+            return materialValue(state);
+        }
 
         ArrayList<State> children = new ArrayList<>();
         Iterator<State> iterator = state.next().iterator();
 
         while (!state.searchLimitReached() && iterator.hasNext()) {
             State move = iterator.next();
-//            if (isMoveLegal(move)) {
+            if (isMoveLegal(move)) {
                 children.add(move);
-//            }
+            }
         }
 
-//        children.sort((a, b) -> Double.compare(assignCaptureOrCheckScores(b, true), assignCaptureOrCheckScores(a, true)));
+        children.sort((a, b) -> Double.compare(assignCaptureOrCheckScores(b, true),
+                assignCaptureOrCheckScores(a, true)));
 
-        State value = state;
         for (State child : children) {
-            value = find_min(child, depth - 1, alpha, beta);
-            
-            bestValueSoFar = Math.max(bestValueSoFar, materialValue(value).value);
-            alpha = Math.max(alpha, bestValueSoFar);
+            Result value = find_min(child, depth - 1, alpha, beta);
+            if (materialValue(value.state).value > bestValueSoFar.value) {
+                bestValueSoFar = materialValue(value.state);
+            }
+
+            alpha = Math.max(alpha, bestValueSoFar.value);
             if (beta <= alpha) {
                 break;
             }
         }
 
-        return value;
+        return bestValueSoFar;
     }
 
-    private State find_min(State state, int depth, double alpha, double beta) {
-        if (state.searchLimitReached() || depth == 0 || state.over) {
-            return state;
-        }
-        
+    private Result find_min(State state, int depth, double alpha, double beta) {
+
         queenCount.clear();
         rookCount.clear();
 
-        double bestSoFar = Double.POSITIVE_INFINITY;
+        Result bestSoFar = new Result(state, Double.POSITIVE_INFINITY);
+
+        if (state.searchLimitReached() || depth == 0) {
+            return bestSoFar;
+        }
+
+        if (state.over) {
+            return materialValue(state);
+        }
 
         ArrayList<State> children = new ArrayList<>();
         Iterator<State> iterator = state.next().iterator();
 
         while (!state.searchLimitReached() && iterator.hasNext()) {
             State move = iterator.next();
-//            if (isMoveLegal(move)) {
+            if (isMoveLegal(move)) {
                 children.add(move);
-//            }
+            }
         }
 
-//        children.sort((a, b) -> Double.compare(assignCaptureOrCheckScores(a, false), assignCaptureOrCheckScores(b, false)));
+        children.sort((a, b) -> Double.compare(assignCaptureOrCheckScores(a, false),
+                assignCaptureOrCheckScores(b, false)));
 
-        State value = state;
         for (State child : children) {
-            value = find_max(child, depth - 1, alpha, beta);
+            Result value = find_max(child, depth - 1, alpha, beta);
 
-            bestSoFar = Math.min(bestSoFar, materialValue(value).value);
-            beta = Math.min(beta, bestSoFar);
+            // bestSoFar = Math.min(bestSoFar.value, materialValue(value).value);
+            if (materialValue(value.state).value < bestSoFar.value) {
+                bestSoFar = materialValue(value.state);
+            }
+            beta = Math.min(beta, bestSoFar.value);
             if (beta <= alpha) {
                 break;
             }
         }
 
-        return value;
+        return bestSoFar;
     }
 
-    private Result materialValue(State state) {
-        GamePhase phase = findGamePhase(state);
-        double value = 0.0;
+    private Result materialValue(State state, boolean maximizingPlayer) {
+        double score = 0.0;
 
-        
-    	for (Piece piece : state.board) {
-            if (piece.getClass() == Pawn.class) {
-                value += calculatePawn(piece, phase);
-            } else if (piece.getClass() == Knight.class) {
-                value += calculateKnight(piece);
-            } else if (piece.getClass() == Bishop.class) {
-                value += calculateBishop(state, piece, phase);
-            } else if (piece.getClass() == Rook.class) {
-                value += calculateRook(piece, phase);
-            } else if (piece.getClass() == Queen.class) {
-                value += calculateQueen(piece, phase);
-            } else if (piece.getClass() == King.class) {
-                value += calculateKing(piece);
-            } else {
-                continue;
-            }
-    	}
-        	
-        System.out.println("Value: " + value);
-        System.out.println("White pieces: " + state.board.countPieces(Player.WHITE));
-        System.out.println("Black pieces: " + state.board.countPieces(Player.BLACK));
-        
-        
-        return new Result(state, value);
-    }
+        int pieceDelta = state.board.countPieces(Player.WHITE) - state.board.countPieces(Player.BLACK);
 
-    private double calculateKing(Piece piece) {
-        return piece.player == Player.WHITE ? 1000.0 : -1000.0;
-    }
-
-    private double calculateQueen(Piece piece, GamePhase phase) {
-        double value = 0.0;
-
-        queenCount.add((Queen) piece);
-
-        int whiteQueenCount = 0;
-        int blackQueenCount = 0;
-
-        Iterator<Queen> iterator = queenCount.iterator();
-        while (iterator.hasNext()) {
-            Queen queen = iterator.next();
-            if (queen.player == Player.WHITE) {
-                whiteQueenCount++;
-            } else {
-                blackQueenCount++;
-            }
+        if (pieceDelta > 0) {
+            score += 10.0;
+        } else if (pieceDelta < 0) {
+            score -= 10.0;
         }
 
-        switch (phase) {
-            case MIDDLEGAME:
-            case ENDGAME:
-                break;
-            case THRESHOLD:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteQueenCount == 2) ? 8.7 : 9.4;
-                } else {
-                    value -= (blackQueenCount == 2) ? -8.7 : -9.4;
-                }
-                break;
-        }
-        
-        System.out.println("Queen value: " + value);
-
-        return value;
     }
 
-    private double calculateRook(Piece piece, GamePhase phase) {
-        double value = 0.0;
-		if (rookCount.size() < 4) {
-			rookCount.add((Rook) piece);
-		}
-        
+    // private Result materialValue(State state) {
+    // GamePhase phase = findGamePhase(state);
+    // double value = 0.0;
 
-        int whiteRookCount = 0;
-        int blackRookCount = 0;
-        
-        System.out.println("Rook count: " + rookCount.size());
+    // for (Piece piece : state.board) {
+    // if (piece.getClass() == Pawn.class) {
+    // value += calculatePawn(piece, phase);
+    // } else if (piece.getClass() == Knight.class) {
+    // value += calculateKnight(piece);
+    // } else if (piece.getClass() == Bishop.class) {
+    // value += calculateBishop(state, piece, phase);
+    // } else if (piece.getClass() == Rook.class) {
+    // value += calculateRook(piece, phase);
+    // } else if (piece.getClass() == Queen.class) {
+    // value += calculateQueen(piece, phase);
+    // } else if (piece.getClass() == King.class) {
+    // value += calculateKing(piece);
+    // } else {
+    // continue;
+    // }
+    // }
 
-        Iterator<Rook> iterator = rookCount.iterator();
-        while (iterator.hasNext()) {
-            Rook rook = iterator.next();
-            if (rook.player == Player.WHITE) {
-                whiteRookCount++;
-            } else {
-                blackRookCount++;
-            }
-        }
+    // System.out.println("Value: " + value);
+    // System.out.println("White pieces: " + state.board.countPieces(Player.WHITE));
+    // System.out.println("Black pieces: " + state.board.countPieces(Player.BLACK));
 
-        switch (phase) {
-            case MIDDLEGAME:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteRookCount == 2) ? 4.5 : 4.7;
-                } else {
-                    value += (blackRookCount == 2) ? -4.5 : -4.7;
-                }
-                break;
-            case THRESHOLD:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteRookCount == 2) ? 4.9 : 4.8;
-                } else {
-                    value += (blackRookCount == 2) ? -4.9 : -4.8;
-                }
-                break;
-            case ENDGAME:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteRookCount == 2) ? 5.0 : 5.3;
-                } else {
-                    value += (blackRookCount == 2) ? -5.0 : -5.3;
-                }
-                break;
-            default:
-                break;
-        }
-        
-        System.out.println("Rook value: " + value);
+    // return new Result(state, value);
+    // }
 
-        return value;
-    }
+    // private double calculateKing(Piece piece) {
+    // return piece.player == Player.WHITE ? 1000.0 : -1000.0;
+    // }
 
-    private double calculateBishop(State state, Piece piece, GamePhase phase) {
-        int whiteBishopCount = 0;
-        int blackBishopCount = 0;
+    // private double calculateQueen(Piece piece, GamePhase phase) {
+    // double value = 0.0;
 
-        double value = 0.0;
-        
-        for (Piece currentPiece : state.board) {
-        	if (currentPiece.getClass() == Bishop.class) {
-				if (currentPiece.player == Player.WHITE) {
-					whiteBishopCount++;
-				} else {
-					blackBishopCount++;
-				}
-        	}
-        }
+    // queenCount.add((Queen) piece);
 
-        switch (phase) {
-            case MIDDLEGAME:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteBishopCount == 2) ? 3.6 : 3.3;
-                } else {
-                    value += (blackBishopCount == 2) ? -3.6 : -3.3;
-                }
-                break;
-            case THRESHOLD:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteBishopCount == 2) ? 3.7 : 3.3;
-                } else {
-                    value += (blackBishopCount == 2) ? -3.7 : -3.3;
-                }
-                break;
-            case ENDGAME:
-                if (piece.player == Player.WHITE) {
-                    value += (whiteBishopCount == 2) ? 3.8 : 3.3;
-                } else {
-                    value += (blackBishopCount == 2) ? -3.8 : -3.3;
-                }
-                break;
-            default:
-                return value;
-        }
-        
-        System.out.println("Bishop value: " + value);
+    // int whiteQueenCount = 0;
+    // int blackQueenCount = 0;
 
-        return value;
-    }
+    // Iterator<Queen> iterator = queenCount.iterator();
+    // while (iterator.hasNext()) {
+    // Queen queen = iterator.next();
+    // if (queen.player == Player.WHITE) {
+    // whiteQueenCount++;
+    // } else {
+    // blackQueenCount++;
+    // }
+    // }
 
-    private double calculateKnight(Piece piece) {
-    	
-    	System.out.println("Knight value: " + (piece.player == Player.WHITE ? 3.2 : -3.2));
-    	
-        return piece.player == Player.WHITE ? 3.2 : -3.2;
-    }
+    // switch (phase) {
+    // case MIDDLEGAME:
+    // case ENDGAME:
+    // break;
+    // case THRESHOLD:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteQueenCount == 2) ? 8.7 : 9.4;
+    // } else {
+    // value -= (blackQueenCount == 2) ? -8.7 : -9.4;
+    // }
+    // break;
+    // }
 
-    private double calculatePawn(Piece piece, GamePhase phase) {
-        double value = 0.0;
+    // // System.out.println("Queen value: " + value);
 
-        switch (phase) {
-            case MIDDLEGAME:
-                switch (piece.rank) {
-                    case 0:
-                    case 7:
-                        value = piece.player == Player.WHITE ? 0.7 : -0.7;
-                        break;
-                    case 1:
-                    case 6:
-                        value = piece.player == Player.WHITE ? 0.8 : -0.8;
-                        break;
-                    case 2:
-                    case 5:
-                        value = piece.player == Player.WHITE ? 0.95 : -0.95;
-                        break;
-                    case 3:
-                    case 4:
-                        value = piece.player == Player.WHITE ? 1.0 : -1.0;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            case THRESHOLD:
-                value = piece.player == Player.WHITE ? 0.9 : -0.9;
-                break;
-            case ENDGAME:
-                value = piece.player == Player.WHITE ? 1.0 : -1.0;
-                break;
-            default:
-                break;
-        }
-        
-        System.out.println("Pawn value: " + value);
+    // return value;
+    // }
 
-        return value;
-    }
+    // private double calculateRook(Piece piece, GamePhase phase) {
+    // double value = 0.0;
+    // if (rookCount.size() < 4) {
+    // rookCount.add((Rook) piece);
+    // }
+
+    // int whiteRookCount = 0;
+    // int blackRookCount = 0;
+
+    // // System.out.println("Rook count: " + rookCount.size());
+
+    // Iterator<Rook> iterator = rookCount.iterator();
+    // while (iterator.hasNext()) {
+    // Rook rook = iterator.next();
+    // if (rook.player == Player.WHITE) {
+    // whiteRookCount++;
+    // } else {
+    // blackRookCount++;
+    // }
+    // }
+
+    // switch (phase) {
+    // case MIDDLEGAME:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteRookCount == 2) ? 4.5 : 4.7;
+    // } else {
+    // value += (blackRookCount == 2) ? -4.5 : -4.7;
+    // }
+    // break;
+    // case THRESHOLD:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteRookCount == 2) ? 4.9 : 4.8;
+    // } else {
+    // value += (blackRookCount == 2) ? -4.9 : -4.8;
+    // }
+    // break;
+    // case ENDGAME:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteRookCount == 2) ? 5.0 : 5.3;
+    // } else {
+    // value += (blackRookCount == 2) ? -5.0 : -5.3;
+    // }
+    // break;
+    // default:
+    // break;
+    // }
+
+    // // System.out.println("Rook value: " + value);
+
+    // return value;
+    // }
+
+    // private double calculateBishop(State state, Piece piece, GamePhase phase) {
+    // int whiteBishopCount = 0;
+    // int blackBishopCount = 0;
+
+    // double value = 0.0;
+
+    // for (Piece currentPiece : state.board) {
+    // if (currentPiece.getClass() == Bishop.class) {
+    // if (currentPiece.player == Player.WHITE) {
+    // whiteBishopCount++;
+    // } else {
+    // blackBishopCount++;
+    // }
+    // }
+    // }
+
+    // switch (phase) {
+    // case MIDDLEGAME:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteBishopCount == 2) ? 3.6 : 3.3;
+    // } else {
+    // value += (blackBishopCount == 2) ? -3.6 : -3.3;
+    // }
+    // break;
+    // case THRESHOLD:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteBishopCount == 2) ? 3.7 : 3.3;
+    // } else {
+    // value += (blackBishopCount == 2) ? -3.7 : -3.3;
+    // }
+    // break;
+    // case ENDGAME:
+    // if (piece.player == Player.WHITE) {
+    // value += (whiteBishopCount == 2) ? 3.8 : 3.3;
+    // } else {
+    // value += (blackBishopCount == 2) ? -3.8 : -3.3;
+    // }
+    // break;
+    // default:
+    // return value;
+    // }
+
+    // // System.out.println("Bishop value: " + value);
+
+    // return value;
+    // }
+
+    // private double calculateKnight(Piece piece) {
+
+    // // System.out.println("Knight value: " + (piece.player == Player.WHITE ? 3.2
+    // : -3.2));
+
+    // return piece.player == Player.WHITE ? 3.2 : -3.2;
+    // }
+
+    // private double calculatePawn(Piece piece, GamePhase phase) {
+    // double value = 0.0;
+
+    // switch (phase) {
+    // case MIDDLEGAME:
+    // switch (piece.rank) {
+    // case 0:
+    // case 7:
+    // value = piece.player == Player.WHITE ? 0.7 : -0.7;
+    // break;
+    // case 1:
+    // case 6:
+    // value = piece.player == Player.WHITE ? 0.8 : -0.8;
+    // break;
+    // case 2:
+    // case 5:
+    // value = piece.player == Player.WHITE ? 0.95 : -0.95;
+    // break;
+    // case 3:
+    // case 4:
+    // value = piece.player == Player.WHITE ? 1.0 : -1.0;
+    // break;
+    // default:
+    // break;
+    // }
+    // break;
+    // case THRESHOLD:
+    // value = piece.player == Player.WHITE ? 0.9 : -0.9;
+    // break;
+    // case ENDGAME:
+    // value = piece.player == Player.WHITE ? 1.0 : -1.0;
+    // break;
+    // default:
+    // break;
+    // }
+
+    // // System.out.println("Pawn value: " + value);
+
+    // return value;
+    // }
 }
