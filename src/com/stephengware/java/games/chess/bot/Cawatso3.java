@@ -2,6 +2,9 @@ package com.stephengware.java.games.chess.bot;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+
 import com.stephengware.java.games.chess.state.*;
 
 public class Cawatso3 extends Bot {
@@ -15,12 +18,16 @@ public class Cawatso3 extends Bot {
 
         State bestMove = root;
 
-        for (int depth = 2; depth <= 6; depth += 2) {
+        for (int depth = 0; depth <= 2; depth++) {
             bestMove = min_max_ab(root, root.player == Player.WHITE, depth).state;
 
             if (root.searchLimitReached()) {
                 break;
             }
+        }
+
+        while (bestMove.previous != root) {
+            bestMove = bestMove.previous;
         }
 
         return bestMove;
@@ -31,6 +38,35 @@ public class Cawatso3 extends Bot {
                 : min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
     }
 
+    private ArrayList<State> gatherChildren(State state) {
+        ArrayList<State> children = new ArrayList<>();
+        // Iterator<State> iterator = state.next().iterator();
+
+        // while (!state.searchLimitReached() && iterator.hasNext()) {
+        // State move = iterator.next();
+        // move.setSearchLimit(20);
+        // children.add(move);
+        // }
+
+        for (Piece piece : state.board) {
+            if (piece.player == state.player) {
+
+                Iterator<State> iterator = state.next(piece).iterator();
+                int counter = 0;
+
+                while (!state.searchLimitReached() && iterator.hasNext() && counter < 20) {
+                    State move = iterator.next();
+                    // System.out.println("adding: " + move);
+                    // move.setSearchLimit(20);
+                    children.add(move);
+                    counter++;
+                }
+            }
+        }
+
+        return children;
+    }
+
     private Result max_ab(State state, int depth, double alpha, double beta) {
         if (depth == 0) {
             System.out.println("returning: " + state);
@@ -39,25 +75,41 @@ public class Cawatso3 extends Bot {
         }
         double best = Double.NEGATIVE_INFINITY;
 
-        ArrayList<State> children = new ArrayList<>();
-        Iterator<State> iterator = state.next().iterator();
+        ArrayList<State> children = gatherChildren(state);
+        List<Result> bestResults = new ArrayList<>();
 
-        while (!state.searchLimitReached() && iterator.hasNext()) {
-            State move = iterator.next();
-            move.setSearchLimit(20);
-            children.add(move);
+        if (children.isEmpty()) {
+            return materialValue(state);
         }
 
         for (State child : children) {
             Result value = min_ab(child, depth - 1, alpha, beta);
-            best = Math.max(best, value.value);
+
+            if (value.state.check) {
+                value.value += 100;
+            }
+
+            if (value.state.check && value.state.over) {
+                value.value += 1000;
+            }
+
+            if (value.value > best) {
+                best = value.value;
+                bestResults.clear();
+                bestResults.add(value);
+            } else if (value.value == best) {
+                bestResults.add(value);
+            }
+
             if (best >= beta) {
-                return new Result(state, best);
+                System.out.println("pruning in max_ab");
+                break;
             }
             alpha = Math.max(alpha, best);
         }
 
-        return new Result(state, best);
+        // return new Result(state, best);
+        return bestResults.get(new Random().nextInt(bestResults.size()));
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta) {
@@ -69,25 +121,42 @@ public class Cawatso3 extends Bot {
 
         double best = Double.POSITIVE_INFINITY;
 
-        ArrayList<State> children = new ArrayList<>();
-        Iterator<State> iterator = state.next().iterator();
+        ArrayList<State> children = gatherChildren(state);
+        List<Result> bestResults = new ArrayList<>();
 
-        while (!state.searchLimitReached() && iterator.hasNext()) {
-            State move = iterator.next();
-            move.setSearchLimit(20);
-            children.add(move);
+        if (children.isEmpty()) {
+            return materialValue(state);
         }
 
         for (State child : children) {
             Result value = max_ab(child, depth - 1, alpha, beta);
-            best = Math.min(best, value.value);
-            if (best <= alpha) {
-                return new Result(state, best);
+
+            if (value.state.check) {
+                value.value -= 100;
             }
+            
+            if (value.state.check && value.state.over) {
+                value.value -= 1000;
+            }
+
+            if (value.value < best) {
+                best = value.value;
+                bestResults.clear();
+                bestResults.add(value);
+            } else if (value.value == best) {
+                bestResults.add(value);
+            }
+
+            if (best <= alpha) {
+                System.out.println("pruning in min_ab");
+                break;
+            }
+
             beta = Math.min(beta, best);
         }
 
-        return new Result(state, best);
+        // return new Result(state, best);
+        return bestResults.get(new Random().nextInt(bestResults.size()));
     }
 
     private Result materialValue(State state) {

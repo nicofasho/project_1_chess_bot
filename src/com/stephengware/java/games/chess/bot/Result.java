@@ -4,7 +4,7 @@ import com.stephengware.java.games.chess.state.State;
 
 public final class Result {
 	public final State state;
-	public final double value;
+	public double value;
 	
 	public Result(State state, double value) {
 		this.state = state;
