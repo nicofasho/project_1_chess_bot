@@ -40,13 +40,6 @@ public class Cawatso3 extends Bot {
 
     private ArrayList<State> gatherChildren(State state) {
         ArrayList<State> children = new ArrayList<>();
-        // Iterator<State> iterator = state.next().iterator();
-
-        // while (!state.searchLimitReached() && iterator.hasNext()) {
-        // State move = iterator.next();
-        // move.setSearchLimit(20);
-        // children.add(move);
-        // }
 
         for (Piece piece : state.board) {
             if (piece.player == state.player) {
@@ -56,8 +49,6 @@ public class Cawatso3 extends Bot {
 
                 while (!state.searchLimitReached() && iterator.hasNext() && counter < 20) {
                     State move = iterator.next();
-                    // System.out.println("adding: " + move);
-                    // move.setSearchLimit(20);
                     children.add(move);
                     counter++;
                 }
@@ -108,7 +99,6 @@ public class Cawatso3 extends Bot {
             alpha = Math.max(alpha, best);
         }
 
-        // return new Result(state, best);
         return bestResults.get(new Random().nextInt(bestResults.size()));
     }
 
@@ -155,7 +145,6 @@ public class Cawatso3 extends Bot {
             beta = Math.min(beta, best);
         }
 
-        // return new Result(state, best);
         return bestResults.get(new Random().nextInt(bestResults.size()));
     }
 
