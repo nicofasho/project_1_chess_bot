@@ -1,6 +1,7 @@
 package com.stephengware.java.games.chess.bot;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -16,26 +17,44 @@ public class Cawatso3 extends Bot {
     @Override
     protected State chooseMove(State root) {
 
-        State bestMove = root;
+        Result bestMove = new Result(root,
+                root.player == Player.WHITE ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+        List<Result> bestMoves = new ArrayList<>();
 
-        for (int depth = 0; depth <= 2; depth++) {
-            bestMove = min_max_ab(root, root.player == Player.WHITE, depth).state;
+        for (int depth = 0; depth < 6; depth++) {
+            bestMove = min_max_ab(root, root.player == Player.WHITE, depth);
+            bestMoves.add(bestMove);
 
             if (root.searchLimitReached()) {
                 break;
             }
         }
 
-        while (bestMove.previous != root) {
-            bestMove = bestMove.previous;
+        bestMoves.sort(Comparator.comparingDouble(result -> result.value));
+
+        System.out.println("bestMoves size: " + bestMoves.size());
+
+        bestMove = bestMoves.get(bestMoves.size() - 1);
+        System.out.println(bestMove.state);
+
+        if (bestMove.state == null) {
+            System.out.println("bestMove.state is null");
         }
 
-        return bestMove;
+        while (bestMove.state != null && bestMove.state.previous != root) {
+            bestMove.state = bestMove.state.previous;
+        }
+
+        System.out.println("bestMove value: " + bestMove.value);
+
+        return bestMove.state;
     }
 
     private Result min_max_ab(State state, boolean maximizingPlayer, int depth) {
-        return maximizingPlayer ? max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
+        Result result = maximizingPlayer ? max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
                 : min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+
+        return result;
     }
 
     private ArrayList<State> gatherChildren(State state) {
@@ -45,12 +64,10 @@ public class Cawatso3 extends Bot {
             if (piece.player == state.player) {
 
                 Iterator<State> iterator = state.next(piece).iterator();
-                int counter = 0;
 
-                while (!state.searchLimitReached() && iterator.hasNext() && counter < 20) {
+                while (!state.searchLimitReached() && iterator.hasNext()) {
                     State move = iterator.next();
                     children.add(move);
-                    counter++;
                 }
             }
         }
@@ -59,17 +76,18 @@ public class Cawatso3 extends Bot {
     }
 
     private Result max_ab(State state, int depth, double alpha, double beta) {
-        if (depth == 0) {
-            System.out.println("returning: " + state);
-            System.out.println("materialValue: " + materialValue(state).value);
-            return materialValue(state);
+        if (depth == 0 || state.countDescendants() == 0) {
+            Result result = materialValue(state);
+            if (result.value == Double.POSITIVE_INFINITY) {
+                System.out.println("Infinity at depth " + depth + "in max_ab");
+            }
+            return result;
         }
-        double best = Double.NEGATIVE_INFINITY;
+        Result best = new Result(state, Double.NEGATIVE_INFINITY);
 
         ArrayList<State> children = gatherChildren(state);
-        List<Result> bestResults = new ArrayList<>();
 
-        if (children.isEmpty()) {
+        if (children.size() == 0) {
             return materialValue(state);
         }
 
@@ -77,75 +95,74 @@ public class Cawatso3 extends Bot {
             Result value = min_ab(child, depth - 1, alpha, beta);
 
             if (value.state.check) {
-                value.value += 100;
+                value.value += 5;
             }
 
             if (value.state.check && value.state.over) {
                 value.value += 1000;
             }
 
-            if (value.value > best) {
-                best = value.value;
-                bestResults.clear();
-                bestResults.add(value);
-            } else if (value.value == best) {
-                bestResults.add(value);
+            if (value.value > best.value) {
+                best = value;
             }
 
-            if (best >= beta) {
-                System.out.println("pruning in max_ab");
-                break;
+            if (best.value >= beta) {
+                return best;
             }
-            alpha = Math.max(alpha, best);
+            alpha = Math.max(alpha, best.value);
         }
-
-        return bestResults.get(new Random().nextInt(bestResults.size()));
+        if (best.value == Double.POSITIVE_INFINITY) {
+            System.out.println("Infinity at the bottom of max_ab");
+        }
+        return best;
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta) {
-        if (depth == 0) {
-            System.out.println("returning: " + state);
-            System.out.println("materialValue: " + materialValue(state).value);
+        if (depth == 0 || state.countDescendants() == 0) {
+            if (materialValue(state).value == Double.POSITIVE_INFINITY) {
+                System.out.println("Infinity at depth " + depth + "in min_ab");
+            }
             return materialValue(state);
         }
 
-        double best = Double.POSITIVE_INFINITY;
+        Result best = new Result(state, Double.POSITIVE_INFINITY);
 
         ArrayList<State> children = gatherChildren(state);
-        List<Result> bestResults = new ArrayList<>();
 
-        if (children.isEmpty()) {
+        if (children.size() == 0) {
             return materialValue(state);
         }
 
         for (State child : children) {
             Result value = max_ab(child, depth - 1, alpha, beta);
 
-            if (value.state.check) {
-                value.value -= 100;
+            if (value.value == Double.POSITIVE_INFINITY) {
+                System.out.println("Infinity in the loop in min_ab");
             }
-            
+
+            if (value.state.check) {
+                value.value -= 5;
+            }
+
             if (value.state.check && value.state.over) {
                 value.value -= 1000;
             }
 
-            if (value.value < best) {
-                best = value.value;
-                bestResults.clear();
-                bestResults.add(value);
-            } else if (value.value == best) {
-                bestResults.add(value);
+            if (value.value < best.value) {
+                best = value;
             }
 
-            if (best <= alpha) {
-                System.out.println("pruning in min_ab");
-                break;
+            if (best.value <= alpha) {
+                return best;
             }
 
-            beta = Math.min(beta, best);
+            beta = Math.min(beta, best.value);
         }
 
-        return bestResults.get(new Random().nextInt(bestResults.size()));
+        if (best.value == Double.POSITIVE_INFINITY) {
+            System.out.println("Infinity at the bottom of min_ab");
+        }
+        return best;
     }
 
     private Result materialValue(State state) {
@@ -172,6 +189,9 @@ public class Cawatso3 extends Bot {
                 value += maximizingPlayer ? 100 : -100;
             }
         }
+        if (value == Double.POSITIVE_INFINITY)
+            System.out.println("Infinity");
+
         return new Result(state, value);
     }
 }
