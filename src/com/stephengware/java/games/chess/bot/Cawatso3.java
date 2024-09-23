@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Random;
 
 import com.stephengware.java.games.chess.state.*;
+import com.stephengware.java.games.chess.bot.Result;
 
 public class Cawatso3 extends Bot {
 
@@ -17,8 +18,10 @@ public class Cawatso3 extends Bot {
     @Override
     protected State chooseMove(State root) {
 
+        boolean maximizingPlayer = root.player == Player.WHITE;
+
         Result bestMove = new Result(root,
-                root.player == Player.WHITE ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+                maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
         List<Result> bestMoves = new ArrayList<>();
 
         for (int depth = 0; depth < 6; depth++) {
@@ -29,23 +32,37 @@ public class Cawatso3 extends Bot {
                 break;
             }
         }
+        System.out.println("bestMoves not sorted");
+        for (Result result : bestMoves) {
+            System.out.println("state: " + result.state + " value: " + result.value);
+        }
 
         bestMoves.sort(Comparator.comparingDouble(result -> result.value));
 
         System.out.println("bestMoves size: " + bestMoves.size());
 
-        bestMove = bestMoves.get(bestMoves.size() - 1);
-        System.out.println(bestMove.state);
-
-        if (bestMove.state == null) {
-            System.out.println("bestMove.state is null");
+        System.out.println("bestMoves sorted");
+        for (Result result : bestMoves) {
+            System.out.println("state: " + result.state + " value: " + result.value);
         }
 
-        while (bestMove.state != null && bestMove.state.previous != root) {
+        int positionCounter = 1;
+
+        bestMove = bestMoves
+                .get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
+        System.out.println("bestMove selected: " + bestMove.state);
+
+
+        System.out.println("Looping back to root");
+        while (bestMove.state.previous != root) {
+            System.out.println("root: " + root);
+            System.out.println("bestMove state: " + bestMove.state);
+
             bestMove.state = bestMove.state.previous;
         }
 
         System.out.println("bestMove value: " + bestMove.value);
+        System.out.println("Best move: " + bestMove.state);
 
         return bestMove.state;
     }
