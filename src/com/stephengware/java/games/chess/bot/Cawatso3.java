@@ -48,8 +48,11 @@ public class Cawatso3 extends Bot {
 
         int positionCounter = 1;
 
-        bestMove = bestMoves
-                .get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
+        while (bestMove.state == root) {
+            positionCounter++;
+            bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
+        }
+
         System.out.println("bestMove selected: " + bestMove.state);
 
 
@@ -57,6 +60,10 @@ public class Cawatso3 extends Bot {
         while (bestMove.state.previous != root) {
             System.out.println("root: " + root);
             System.out.println("bestMove state: " + bestMove.state);
+
+            if (bestMove.state == root) {
+                break;
+            }
 
             bestMove.state = bestMove.state.previous;
         }
@@ -77,16 +84,23 @@ public class Cawatso3 extends Bot {
     private ArrayList<State> gatherChildren(State state) {
         ArrayList<State> children = new ArrayList<>();
 
-        for (Piece piece : state.board) {
-            if (piece.player == state.player) {
+        // for (Piece piece : state.board) {
+        //     if (piece.player == state.player) {
 
-                Iterator<State> iterator = state.next(piece).iterator();
+        //         Iterator<State> iterator = state.next(piece).iterator();
 
-                while (!state.searchLimitReached() && iterator.hasNext()) {
-                    State move = iterator.next();
-                    children.add(move);
-                }
-            }
+        //         while (!state.searchLimitReached() && iterator.hasNext()) {
+        //             State move = iterator.next();
+        //             children.add(move);
+        //         }
+        //     }
+        // }
+
+        Iterator<State> iterator = state.next().iterator();
+
+        while (!state.searchLimitReached() && iterator.hasNext()) {
+            State move = iterator.next();
+            children.add(move);
         }
 
         return children;
