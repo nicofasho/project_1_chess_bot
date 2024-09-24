@@ -84,9 +84,14 @@ public class Cawatso3 extends Bot {
 
     private ArrayList<State> gatherQuiescentChildren (State state) {
         ArrayList<State> children = new ArrayList<>();
+        boolean maximizingPlayer = state.player == Player.WHITE;
 
         for (Piece piece : state.board) {
-            
+            if (piece.getClass() == Pawn.class) {
+                if (maximizingPlayer) {
+                    
+                }
+            }
         }
 
         return children;
