@@ -25,6 +25,10 @@ public class Cawatso3 extends Bot {
         List<Result> bestMoves = new ArrayList<>();
 
         for (int depth = 0; depth < 6; depth++) {
+
+            bestMove = quiescenceSearch(root, maximizingPlayer, depth);
+            bestMoves.add(bestMove);
+
             bestMove = min_max_ab(root, root.player == Player.WHITE, depth);
             bestMoves.add(bestMove);
 
@@ -72,6 +76,20 @@ public class Cawatso3 extends Bot {
         System.out.println("Best move: " + bestMove.state);
 
         return bestMove.state;
+    }
+
+    private Result quiescenceSearch(State state, boolean maximizingPlayer) {
+        
+    }
+
+    private ArrayList<State> gatherQuiescentChildren (State state) {
+        ArrayList<State> children = new ArrayList<>();
+
+        for (Piece piece : state.board) {
+            
+        }
+
+        return children;
     }
 
     private Result min_max_ab(State state, boolean maximizingPlayer, int depth) {
@@ -125,11 +143,11 @@ public class Cawatso3 extends Bot {
         for (State child : children) {
             Result value = min_ab(child, depth - 1, alpha, beta);
 
-            if (value.state.check) {
-                value.value += 5;
+            if (value.state.check && value.state.previous == null) {
+                value.value += 500;
             }
 
-            if (value.state.check && value.state.over) {
+            if (value.state.check && value.state.over && value.state.previous == null) {
                 value.value += 1000;
             }
 
@@ -171,11 +189,11 @@ public class Cawatso3 extends Bot {
                 System.out.println("Infinity in the loop in min_ab");
             }
 
-            if (value.state.check) {
-                value.value -= 5;
+            if (value.state.check && value.state.previous == null) {
+                value.value -= 500;
             }
 
-            if (value.state.check && value.state.over) {
+            if (value.state.check && value.state.over && value.state.previous == null) {
                 value.value -= 1000;
             }
 
