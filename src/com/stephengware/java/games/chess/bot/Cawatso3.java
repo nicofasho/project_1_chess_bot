@@ -2,6 +2,7 @@ package com.stephengware.java.games.chess.bot;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -18,6 +19,8 @@ public class Cawatso3 extends Bot {
     private enum SearchType {
         QUIESCENCE, MINMAX
     }
+
+    private HashMap<Long, State> visitedStates = new HashMap<>();
 
     @Override
     protected State chooseMove(State root) {
@@ -40,19 +43,8 @@ public class Cawatso3 extends Bot {
                 break;
             }
         }
-        System.out.println("bestMoves not sorted");
-        for (Result result : bestMoves) {
-            System.out.println("state: " + result.state + " value: " + result.value);
-        }
 
         bestMoves.sort(Comparator.comparingDouble(result -> result.value));
-
-        System.out.println("bestMoves size: " + bestMoves.size());
-
-        System.out.println("bestMoves sorted");
-        for (Result result : bestMoves) {
-            System.out.println("state: " + result.state + " value: " + result.value);
-        }
 
         int positionCounter = 1;
 
@@ -61,12 +53,8 @@ public class Cawatso3 extends Bot {
             bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
         }
 
-        System.out.println("bestMove selected: " + bestMove.state);
-
         System.out.println("Looping back to root");
         while (bestMove.state.previous != root) {
-            System.out.println("root: " + root);
-            System.out.println("bestMove state: " + bestMove.state);
 
             if (bestMove.state == root) {
                 break;
@@ -87,8 +75,13 @@ public class Cawatso3 extends Bot {
         try {
             if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
                 if (state.board.pieceAt(file, rank, opponent)) {
-                    children.add(state.next(piece, piece.move(file, rank)));
-                    return true;
+                    long hash = state.hashCode();
+                    if (!visitedStates.containsKey(hash)) {
+                        children.add(state.next(piece, piece.move(file, rank)));
+                        visitedStates.put(hash, state);
+                        return true;
+                    }
+
                 } else if (state.board.pieceAt(file, rank)) {
                     return true;
                 }
@@ -353,7 +346,12 @@ public class Cawatso3 extends Bot {
 
         while (!state.searchLimitReached() && iterator.hasNext()) {
             State move = iterator.next();
-            children.add(move);
+            long hash = move.hashCode();
+
+            if (!visitedStates.containsKey(hash)) {
+                visitedStates.put(hash, move);
+                children.add(move);
+            }
         }
 
         return children;
@@ -483,9 +481,13 @@ public class Cawatso3 extends Bot {
             if (piece.getClass() == King.class) {
                 value += maximizingPlayer ? 100 : -100;
             }
+
+            // if (piece.rank > 2 && piece.rank < 5) {
+            // if (piece.file > 2 && piece.file < 5) {
+            // value *= maximizingPlayer ? 1.1 : -1.1;
+            // }
+            // }
         }
-        if (value == Double.POSITIVE_INFINITY)
-            System.out.println("Infinity");
 
         return new Result(state, value);
     }
