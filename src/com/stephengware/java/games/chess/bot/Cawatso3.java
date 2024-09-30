@@ -69,261 +69,82 @@ public class Cawatso3 extends Bot {
         return bestMove.state;
     }
 
-    private boolean addIfThreaten(State state, ArrayList<State> children, Piece piece, int file, int rank,
-            Player opponent) {
-        // Check if the file and rank are within the bounds of the chessboard
-        try {
-            if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
-                if (state.board.pieceAt(file, rank, opponent)) {
-                    long hash = state.hashCode();
-                    if (!visitedStates.containsKey(hash)) {
-                        children.add(state.next(piece, piece.move(file, rank)));
-                        visitedStates.put(hash, state);
-                        return true;
-                    }
-
-                } else if (state.board.pieceAt(file, rank)) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    private ArrayList<State> gatherQuiescentChildren(State state) {
+    private ArrayList<State> gatherQuiescentChildren(State state, Piece piece) {
         ArrayList<State> children = new ArrayList<>();
-        for (Piece piece : state.board) {
+        boolean maximizingPlayer = piece.player == Player.WHITE;
 
-            boolean maximizingPlayer = piece.player == Player.WHITE;
-
-            if (piece.getClass() == Pawn.class) {
-                if (maximizingPlayer) {
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank + 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank - 1, Player.BLACK);
-                } else {
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank - 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank + 1, Player.WHITE);
+        if (piece.getClass() == Pawn.class) {
+            int[][] pawnMoves = maximizingPlayer ? new int[][] { { 1, 0 }, { 1, 1 }, { 1, -1 }, { 2, 0 } }
+                    : new int[][] { { -1, 0 }, { -1, 1 }, { -1, -1 }, { -2, 0 } };
+            for (int[] move : pawnMoves) {
+                int newFile = piece.file + move[0];
+                int newRank = piece.rank + move[1];
+                if (isMoveLegal(state, piece, new Pawn(piece.player, newFile, newRank))) {
+                    children.add(state.next(piece, new Pawn(piece.player, newFile, newRank)));
                 }
             }
-            if (piece.getClass() == Knight.class) {
-                if (maximizingPlayer) {
-                    addIfThreaten(state, children, piece, piece.file + 2, piece.rank + 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file + 2, piece.rank - 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 2, piece.rank + 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 2, piece.rank - 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank + 2, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank - 2, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank + 2, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank - 2, Player.BLACK);
-                } else {
-                    addIfThreaten(state, children, piece, piece.file + 2, piece.rank + 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file + 2, piece.rank - 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 2, piece.rank + 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 2, piece.rank - 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank + 2, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank - 2, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank + 2, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank - 2, Player.WHITE);
+        } else if (piece.getClass() == Knight.class) {
+            int[][] knightMoves = {
+                    { 2, 1 }, { 2, -1 }, { -2, 1 }, { -2, -1 },
+                    { 1, 2 }, { 1, -2 }, { -1, 2 }, { -1, -2 }
+            };
+            for (int[] move : knightMoves) {
+                int newFile = piece.file + move[0];
+                int newRank = piece.rank + move[1];
+                if (isMoveLegal(state, piece, new Knight(piece.player, newFile, newRank))) {
+                    children.add(state.next(piece, new Knight(piece.player, newFile, newRank)));
                 }
             }
-            if (piece.getClass() == Bishop.class) {
-                if (maximizingPlayer) {
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank + i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank - i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank + i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank - i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                } else {
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank + i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank - i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank + i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank - i, Player.WHITE)) {
-                            break;
-                        }
+        } else if (piece.getClass() == Bishop.class) {
+            int[][] bishopMoves = {
+                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+            };
+            for (int[] move : bishopMoves) {
+                for (int i = 1; i < 8; i++) {
+                    int newFile = piece.file + i * move[0];
+                    int newRank = piece.rank + i * move[1];
+                    if (isMoveLegal(state, piece, new Bishop(piece.player, newFile, newRank))) {
+                        children.add(state.next(piece, new Bishop(piece.player, newFile, newRank)));
                     }
                 }
             }
-
-            if (piece.getClass() == Rook.class) {
-                if (maximizingPlayer) {
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank + i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank - i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                } else {
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank + i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank - i, Player.WHITE)) {
-                            break;
-                        }
+        } else if (piece.getClass() == Rook.class) {
+            int[][] rookMoves = {
+                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
+            };
+            for (int[] move : rookMoves) {
+                for (int i = 1; i < 8; i++) {
+                    int newFile = piece.file + i * move[0];
+                    int newRank = piece.rank + i * move[1];
+                    if (isMoveLegal(state, piece, new Rook(piece.player, newFile, newRank))) {
+                        children.add(state.next(piece, new Rook(piece.player, newFile, newRank)));
                     }
                 }
             }
-
-            if (piece.getClass() == Queen.class) {
-                if (maximizingPlayer) {
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank + i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank - i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank + i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank - i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank + i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank - i, Player.BLACK)) {
-                            break;
-                        }
-                    }
-                } else {
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank + i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank - i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank + i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank - i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file + i, piece.rank, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file - i, piece.rank, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank + i, Player.WHITE)) {
-                            break;
-                        }
-                    }
-                    for (int i = 1; i < 8; i++) {
-                        if (addIfThreaten(state, children, piece, piece.file, piece.rank - i, Player.WHITE)) {
-                            break;
-                        }
+        } else if (piece.getClass() == Queen.class) {
+            int[][] queenMoves = {
+                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
+                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
+            };
+            for (int[] move : queenMoves) {
+                for (int i = 1; i < 8; i++) {
+                    int newFile = piece.file + i * move[0];
+                    int newRank = piece.rank + i * move[1];
+                    if (isMoveLegal(state, piece, new Queen(piece.player, newFile, newRank))) {
+                        children.add(state.next(piece, new Queen(piece.player, newFile, newRank)));
                     }
                 }
             }
-            if (piece.getClass() == King.class) {
-                if (maximizingPlayer) {
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank + 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank - 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank + 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank - 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file, piece.rank + 1, Player.BLACK);
-                    addIfThreaten(state, children, piece, piece.file, piece.rank - 1, Player.BLACK);
-                } else {
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank + 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank - 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank + 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank - 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file + 1, piece.rank, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file - 1, piece.rank, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file, piece.rank + 1, Player.WHITE);
-                    addIfThreaten(state, children, piece, piece.file, piece.rank - 1, Player.WHITE);
+        } else if (piece.getClass() == King.class) {
+            int[][] kingMoves = {
+                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
+                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
+            };
+            for (int[] move : kingMoves) {
+                int newFile = piece.file + move[0];
+                int newRank = piece.rank + move[1];
+                if (isMoveLegal(state, piece, new King(piece.player, newFile, newRank))) {
+                    children.add(state.next(piece, new King(piece.player, newFile, newRank)));
                 }
             }
         }
@@ -367,12 +188,14 @@ public class Cawatso3 extends Bot {
         }
         Result best = new Result(state, Double.NEGATIVE_INFINITY);
 
-        ArrayList<State> children;
+        ArrayList<State> children = new ArrayList<>();
 
         if (searchType == SearchType.MINMAX) {
             children = gatherChildren(state);
         } else {
-            children = gatherQuiescentChildren(state);
+            for (Piece piece : state.board) {
+                children = gatherQuiescentChildren(state, piece);
+            }
         }
 
         if (children.size() == 0) {
@@ -415,12 +238,14 @@ public class Cawatso3 extends Bot {
 
         Result best = new Result(state, Double.POSITIVE_INFINITY);
 
-        ArrayList<State> children;
+        ArrayList<State> children = new ArrayList<>();
 
         if (searchType == SearchType.MINMAX) {
             children = gatherChildren(state);
         } else {
-            children = gatherQuiescentChildren(state);
+            for (Piece piece : state.board) {
+                children = gatherQuiescentChildren(state, piece);
+            }
         }
         if (children.size() == 0) {
             return materialValue(state);
@@ -461,34 +286,430 @@ public class Cawatso3 extends Bot {
     private Result materialValue(State state) {
         double value = 0;
         for (Piece piece : state.board) {
-            boolean maximizingPlayer = piece.player == Player.WHITE;
-
-            if (piece.getClass() == Pawn.class) {
-                value += maximizingPlayer ? 1 : -1;
-            }
-            if (piece.getClass() == Knight.class) {
-                value += maximizingPlayer ? 3 : -3;
-            }
-            if (piece.getClass() == Bishop.class) {
-                value += maximizingPlayer ? 3 : -3;
-            }
-            if (piece.getClass() == Rook.class) {
-                value += maximizingPlayer ? 5 : -5;
-            }
-            if (piece.getClass() == Queen.class) {
-                value += maximizingPlayer ? 9 : -9;
-            }
-            if (piece.getClass() == King.class) {
-                value += maximizingPlayer ? 100 : -100;
-            }
-
-            // if (piece.rank > 2 && piece.rank < 5) {
-            // if (piece.file > 2 && piece.file < 5) {
-            // value *= maximizingPlayer ? 1.1 : -1.1;
-            // }
-            // }
+            value += rawMaterialValue(piece);
+            value += getPieceSquareValue(state, piece);
+            value += mobilityScore(state, piece);
+            value += state.player == Player.WHITE ? evaluateKingSafety(state) : -evaluateKingSafety(state);
         }
 
         return new Result(state, value);
     }
+
+    private double rawMaterialValue(Piece piece) {
+        double value = 0;
+
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            value += maximizingPlayer ? 100 : -100;
+        }
+        if (piece.getClass() == Knight.class) {
+            value += maximizingPlayer ? 320 : -320;
+        }
+        if (piece.getClass() == Bishop.class) {
+            value += maximizingPlayer ? 330 : -330;
+        }
+        if (piece.getClass() == Rook.class) {
+            value += maximizingPlayer ? 500 : -500;
+        }
+        if (piece.getClass() == Queen.class) {
+            value += maximizingPlayer ? 900 : -900;
+        }
+        if (piece.getClass() == King.class) {
+            value += maximizingPlayer ? 20000 : -20000;
+        }
+
+        return value;
+    }
+
+    private enum GamePhase {
+        MIDDLE_GAME, END_GAME
+    }
+
+    private GamePhase determineGamePhase(State state) {
+        int whiteQueenCount = 0;
+        int blackQueenCount = 0;
+        int whiteOtherPiecesCount = 0;
+        int blackOtherPiecesCount = 0;
+
+        for (Piece piece : state.board) {
+            if (piece.getClass() == Queen.class) {
+                if (piece.player == Player.WHITE) {
+                    whiteQueenCount++;
+                } else if (piece.player == Player.BLACK) {
+                    blackQueenCount++;
+                }
+            } else if (piece.getClass() != King.class) {
+                if (piece.player == Player.WHITE) {
+                    whiteOtherPiecesCount++;
+                } else if (piece.player == Player.BLACK) {
+                    blackOtherPiecesCount++;
+                }
+            }
+        }
+
+        boolean whiteEndGame = (whiteQueenCount == 0) || (whiteQueenCount == 1 && whiteOtherPiecesCount <= 1);
+        boolean blackEndGame = (blackQueenCount == 0) || (blackQueenCount == 1 && blackOtherPiecesCount <= 1);
+
+        if (whiteEndGame && blackEndGame) {
+            return GamePhase.END_GAME;
+        } else {
+            return GamePhase.MIDDLE_GAME;
+        }
+    }
+
+    private double getPieceSquareValue(State state, Piece piece) {
+        // Values for square tables copied from
+        // https://www.chessprogramming.org/Simplified_Evaluation_Function
+
+        double value = 0;
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            value += maximizingPlayer ? whitePawnPieceSquareTable[piece.file][piece.rank]
+                    : -blackPawnPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Knight.class) {
+            value += maximizingPlayer ? whiteKnightPieceSquareTable[piece.file][piece.rank]
+                    : -blackKnightPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Bishop.class) {
+            value += maximizingPlayer ? whiteBishopPieceSquareTable[piece.file][piece.rank]
+                    : -blackBishopPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Rook.class) {
+            value += maximizingPlayer ? whiteRookPieceSquareTable[piece.file][piece.rank]
+                    : -blackRookPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Queen.class) {
+            value += maximizingPlayer ? whiteQueenPieceSquareTable[piece.file][piece.rank]
+                    : -blackQueenPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == King.class) {
+            GamePhase gamePhase = determineGamePhase(state);
+            if (gamePhase == GamePhase.MIDDLE_GAME) {
+                value += maximizingPlayer ? whiteKingMiddleGamePieceSquareTable[piece.file][piece.rank]
+                        : -blackKingMiddleGamePieceSquareTable[piece.file][piece.rank];
+            } else {
+                value += maximizingPlayer ? whiteKingEndGamePieceSquareTable[piece.file][piece.rank]
+                        : -blackKingEndGamePieceSquareTable[piece.file][piece.rank];
+            }
+        }
+
+        return value;
+    }
+
+    private double mobilityScore(State state, Piece piece) {
+        // Idea for looping through possible moves taken from
+        // https://stackoverflow.com/questions/71594433/how-to-write-the-moves-the-knight-can-perform
+
+        double value = 0;
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            if (maximizingPlayer) {
+                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 1, piece.rank)))
+                    value++;
+                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 1, piece.rank + 1)))
+                    value++;
+                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 1, piece.rank - 1)))
+                    value++;
+                if (piece.file == 1)
+                    if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 2, piece.rank)))
+                        value++;
+            } else {
+                if (piece.file == 6)
+                    if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 2, piece.rank)))
+                        value++;
+                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 1, piece.rank)))
+                    value++;
+                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 1, piece.rank + 1)))
+                    value++;
+                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 1, piece.rank - 1)))
+                    value++;
+            }
+        } else if (piece.getClass() == Knight.class) {
+            int[][] knightMoves = {
+                    { 2, 1 }, { 2, -1 }, { -2, 1 }, { -2, -1 },
+                    { 1, 2 }, { 1, -2 }, { -1, 2 }, { -1, -2 }
+            };
+            for (int[] move : knightMoves) {
+                if (isMoveLegal(state, piece, new Knight(piece.player, piece.file + move[0], piece.rank + move[1])))
+                    value++;
+            }
+        } else if (piece.getClass() == Bishop.class) {
+            int[][] bishopMoves = {
+                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+            };
+            for (int[] move : bishopMoves) {
+                for (int i = 1; i < 8; i++) {
+                    if (isMoveLegal(state, piece,
+                            new Bishop(piece.player, piece.file + i * move[0], piece.rank + i * move[1])))
+                        value++;
+                }
+            }
+        } else if (piece.getClass() == Rook.class) {
+            int[][] rookMoves = {
+                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
+            };
+            for (int[] move : rookMoves) {
+                for (int i = 1; i < 8; i++) {
+                    if (isMoveLegal(state, piece,
+                            new Rook(piece.player, piece.file + i * move[0], piece.rank + i * move[1])))
+                        value++;
+                }
+            }
+        } else if (piece.getClass() == Queen.class) {
+            int[][] queenMoves = {
+                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
+                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
+            };
+            for (int[] move : queenMoves) {
+                for (int i = 1; i < 8; i++) {
+                    if (isMoveLegal(state, piece,
+                            new Queen(piece.player, piece.file + i * move[0], piece.rank + i * move[1])))
+                        value++;
+                }
+            }
+        } else if (piece.getClass() == King.class) {
+            int[][] kingMoves = {
+                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
+                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
+            };
+            for (int[] move : kingMoves) {
+                if (isMoveLegal(state, piece, new King(piece.player, piece.file + move[0], piece.rank + move[1])))
+                    value++;
+            }
+        }
+
+        return value;
+    }
+
+    private boolean isMoveLegal(State state, Piece from, Piece to) {
+        try {
+            state.next(from, to);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private double evaluateKingSafety(State state) {
+        double value = 0;
+        King king = state.board.getKing(state.player);
+        boolean maximizingPlayer = state.player == Player.WHITE;
+
+        if (maximizingPlayer) {
+            int[] ranks = { king.rank - 1, king.rank, king.rank + 1 };
+            for (int rank : ranks) {
+                if (state.board.pieceAt(king.file + 1, rank)) {
+                    Piece piece = state.board.getPieceAt(king.file + 1, rank);
+                    if (piece.player == state.player && piece.getClass() == Pawn.class) {
+                        value++;
+                    } else {
+                        value--;
+                    }
+                }
+            }
+        } else {
+            
+        }
+
+        for (Piece piece : state.board) {
+            if (piece.player != state.player) {
+                int ranks[] = { king.rank - 1, king.rank, king.rank + 1 };
+                int files[] = { king.file - 1, king.file, king.file + 1 };
+
+                for (int rank : ranks) {
+                    for (int file : files) {
+                        if (piece.getClass() == Pawn.class) {
+                            if (isMoveLegal(state, piece, new Pawn(piece.player, file, rank))) {
+                                value -= 2;
+                            }
+                        }
+                        if (piece.getClass() == Knight.class) {
+                            if (isMoveLegal(state, piece, new Knight(piece.player, file, rank))) {
+                                value -= 2;
+                            }
+                        }
+                        if (piece.getClass() == Bishop.class) {
+                            if (isMoveLegal(state, piece, new Bishop(piece.player, file, rank))) {
+                                value -= 2;
+                            }
+                        }
+                        if (piece.getClass() == Rook.class) {
+                            if (isMoveLegal(state, piece, new Rook(piece.player, file, rank))) {
+                                value -= 2;
+                            }
+                        }
+                        if (piece.getClass() == Queen.class) {
+                            if (isMoveLegal(state, piece, new Queen(piece.player, file, rank))) {
+                                value -= 2;
+                            }
+                        }
+                        if (piece.getClass() == King.class) {
+                            if (isMoveLegal(state, piece, new King(piece.player, file, rank))) {
+                                value -= 2;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return value;
+    }
+
+    private double[][] whitePawnPieceSquareTable = new double[][] {
+            { 0, 0, 0, 0, 0, 0, 0, 0 },
+            { 5, 10, 10, -20, -20, 10, 10, 5 },
+            { 5, -5, -10, 0, 0, -10, -5, 5 },
+            { 0, 0, 0, 20, 20, 0, 0, 0 },
+            { 5, 5, 10, 25, 25, 10, 5, 5 },
+            { 10, 10, 20, 30, 30, 20, 10, 10 },
+            { 50, 50, 50, 50, 50, 50, 50, 50 },
+            { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+    private double[][] blackPawnPieceSquareTable = new double[][] {
+            { 0, 0, 0, 0, 0, 0, 0, 0 },
+            { 50, 50, 50, 50, 50, 50, 50, 50 },
+            { 10, 10, 20, 30, 30, 20, 10, 10 },
+            { 5, 5, 10, 25, 25, 10, 5, 5 },
+            { 0, 0, 0, 20, 20, 0, 0, 0 },
+            { 5, -5, -10, 0, 0, -10, -5, 5 },
+            { 5, 10, 10, -20, -20, 10, 10, 5 },
+            { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+
+    private double[][] whiteKnightPieceSquareTable = new double[][] {
+            { -50, -40, -30, -30, -30, -30, -40, -50 },
+            { -40, -20, 0, 0, 0, 0, -20, -40 },
+            { -30, 0, 10, 15, 15, 10, 0, -30 },
+            { -30, 5, 15, 20, 20, 15, 5, -30 },
+            { -30, 0, 15, 20, 20, 15, 0, -30 },
+            { -30, 5, 10, 15, 15, 10, 5, -30 },
+            { -40, -20, 0, 5, 5, 0, -20, -40 },
+            { -50, -40, -30, -30, -30, -30, -40, -50 }
+    };
+
+    private double[][] blackKnightPieceSquareTable = new double[][] {
+            { -50, -40, -30, -30, -30, -30, -40, -50 },
+            { -40, -20, 0, 5, 5, 0, -20, -40 },
+            { -30, 5, 10, 15, 15, 10, 5, -30 },
+            { -30, 0, 15, 20, 20, 15, 0, -30 },
+            { -30, 5, 15, 20, 20, 15, 5, -30 },
+            { -30, 0, 10, 15, 15, 10, 0, -30 },
+            { -40, -20, 0, 0, 0, 0, -20, -40 },
+            { -50, -40, -30, -30, -30, -30, -40, -50 }
+    };
+
+    private double[][] whiteBishopPieceSquareTable = new double[][] {
+            { -20, -10, -10, -10, -10, -10, -10, -20 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -10, 0, 5, 10, 10, 5, 0, -10 },
+            { -10, 5, 5, 10, 10, 5, 5, -10 },
+            { -10, 0, 10, 10, 10, 10, 0, -10 },
+            { -10, 10, 10, 10, 10, 10, 10, -10 },
+            { -10, 5, 0, 0, 0, 0, 5, -10 },
+            { -20, -10, -10, -10, -10, -10, -10, -20 }
+    };
+
+    private double[][] blackBishopPieceSquareTable = new double[][] {
+            { -20, -10, -10, -10, -10, -10, -10, -20 },
+            { -10, 5, 0, 0, 0, 0, 5, -10 },
+            { -10, 10, 10, 10, 10, 10, 10, -10 },
+            { -10, 0, 10, 10, 10, 10, 0, -10 },
+            { -10, 5, 5, 10, 10, 5, 5, -10 },
+            { -10, 0, 5, 10, 10, 5, 0, -10 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -20, -10, -10, -10, -10, -10, -10, -20 }
+    };
+
+    private double[][] whiteRookPieceSquareTable = new double[][] {
+            { 0, 0, 0, 0, 0, 0, 0, 0 },
+            { 5, 10, 10, 10, 10, 10, 10, 5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { 0, 0, 0, 5, 5, 0, 0, 0 }
+    };
+
+    private double[][] blackRookPieceSquareTable = new double[][] {
+            { 0, 0, 0, 5, 5, 0, 0, 0 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { 5, 10, 10, 10, 10, 10, 10, 5 },
+            { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+
+    private double[][] whiteQueenPieceSquareTable = new double[][] {
+            { -20, -10, -10, -5, -5, -10, -10, -20 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -10, 0, 5, 5, 5, 5, 0, -10 },
+            { -5, 0, 5, 5, 5, 5, 0, -5 },
+            { 0, 0, 5, 5, 5, 5, 0, -5 },
+            { -10, 5, 5, 5, 5, 5, 0, -10 },
+            { -10, 0, 5, 0, 0, 0, 0, -10 },
+            { -20, -10, -10, -5, -5, -10, -10, -20 }
+    };
+
+    private double[][] blackQueenPieceSquareTable = new double[][] {
+            { -20, -10, -10, -5, -5, -10, -10, -20 },
+            { -10, 0, 5, 0, 0, 0, 0, -10 },
+            { -10, 5, 5, 5, 5, 5, 0, -10 },
+            { 0, 0, 5, 5, 5, 5, 0, -5 },
+            { -5, 0, 5, 5, 5, 5, 0, -5 },
+            { -10, 0, 5, 5, 5, 5, 0, -10 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -20, -10, -10, -5, -5, -10, -10, -20 }
+    };
+
+    private double[][] whiteKingMiddleGamePieceSquareTable = new double[][] {
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -20, -30, -30, -40, -40, -30, -30, -20 },
+            { -10, -20, -20, -20, -20, -20, -20, -10 },
+            { 20, 20, 0, 0, 0, 0, 20, 20 },
+            { 20, 30, 10, 0, 0, 10, 30, 20 }
+    };
+
+    private double[][] blackKingMiddleGamePieceSquareTable = new double[][] {
+            { 20, 30, 10, 0, 0, 10, 30, 20 },
+            { 20, 20, 0, 0, 0, 0, 20, 20 },
+            { -10, -20, -20, -20, -20, -20, -20, -10 },
+            { -20, -30, -30, -40, -40, -30, -30, -20 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 }
+    };
+
+    private double[][] whiteKingEndGamePieceSquareTable = new double[][] {
+            { -50, -40, -30, -20, -20, -30, -40, -50 },
+            { -30, -20, -10, 0, 0, -10, -20, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -30, 0, 0, 0, 0, -30, -30 },
+            { -50, -30, -30, -30, -30, -30, -30, -50 }
+    };
+
+    private double[][] blackKingEndGamePieceSquareTable = new double[][] {
+            { -50, -30, -30, -30, -30, -30, -30, -50 },
+            { -30, -30, 0, 0, 0, 0, -30, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -20, -10, 0, 0, -10, -20, -30 },
+            { -50, -40, -30, -20, -20, -30, -40, -50 }
+    };
 }
