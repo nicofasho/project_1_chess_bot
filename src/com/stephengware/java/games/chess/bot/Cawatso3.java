@@ -25,18 +25,27 @@ public class Cawatso3 extends Bot {
     @Override
     protected State chooseMove(State root) {
 
+        int positionCounter = 1;
+
         boolean maximizingPlayer = root.player == Player.WHITE;
 
         Result bestMove = new Result(root,
                 maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
         List<Result> bestMoves = new ArrayList<>();
 
-        for (int depth = 0; depth < 4; depth++) {
+        for (int depth = 0; depth < 2; depth++) {
 
-            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.QUIESCENCE);
+            if (bestMoves.size() > 0) {
+                positionCounter = 1;
+                bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
+            }
+
+            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.QUIESCENCE, bestMoves.size() > 0 ? bestMove.value
+                    : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
             bestMoves.add(bestMove);
 
-            bestMove = min_max_ab(root, root.player == Player.WHITE, depth, SearchType.MINMAX);
+            bestMove = min_max_ab(root, root.player == Player.WHITE, depth, SearchType.MINMAX, bestMoves.size() > 0 ? bestMove.value
+            : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
             bestMoves.add(bestMove);
 
             if (root.searchLimitReached()) {
@@ -46,8 +55,7 @@ public class Cawatso3 extends Bot {
 
         bestMoves.sort(Comparator.comparingDouble(result -> result.value));
 
-        int positionCounter = 1;
-
+        positionCounter = 1;
         while (bestMove.state == root) {
             positionCounter++;
             bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
@@ -84,7 +92,7 @@ public class Cawatso3 extends Bot {
                         children.add(state.next(piece, new Pawn(piece.player, newFile, newRank)));
                     }
                 }
-                
+
             }
         } else if (piece.getClass() == Knight.class) {
             int[][] knightMoves = {
@@ -143,8 +151,8 @@ public class Cawatso3 extends Bot {
                         if (isMoveLegal(state, piece, new Queen(piece.player, newFile, newRank))) {
                             children.add(state.next(piece, new Queen(piece.player, newFile, newRank)));
                         }
+                    }
                 }
-            }
             }
         } else if (piece.getClass() == King.class) {
             int[][] kingMoves = {
@@ -165,10 +173,10 @@ public class Cawatso3 extends Bot {
         return children;
     }
 
-    private Result min_max_ab(State state, boolean maximizingPlayer, int depth, SearchType searchType) {
+    private Result min_max_ab(State state, boolean maximizingPlayer, int depth, SearchType searchType, double bestValue) {
         Result result = maximizingPlayer
-                ? max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType)
-                : min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
+                ? max_ab(state, depth, bestValue, Double.POSITIVE_INFINITY, searchType)
+                : min_ab(state, depth, Double.NEGATIVE_INFINITY, bestValue, searchType);
 
         return result;
     }
@@ -184,9 +192,9 @@ public class Cawatso3 extends Bot {
             // long hash = move.hashCode();
 
             // if (!visitedStates.containsKey(hash)) {
-            //     visitedStates.put(hash, move);
-            //     children.add(move);
-            //     counter++;
+            // visitedStates.put(hash, move);
+            // children.add(move);
+            // counter++;
             // }
 
             children.add(move);
@@ -303,7 +311,6 @@ public class Cawatso3 extends Bot {
     }
 
     private Result materialValue(State state) {
-        System.out.println("Calculating material value");
         double value = 0;
 
         value += state.player == Player.WHITE ? evaluateKingSafety(state) : -evaluateKingSafety(state);
@@ -318,7 +325,6 @@ public class Cawatso3 extends Bot {
     }
 
     private double rawMaterialValue(Piece piece) {
-        System.out.println("Calculating raw material value");
         double value = 0;
 
         boolean maximizingPlayer = piece.player == Player.WHITE;
@@ -385,7 +391,6 @@ public class Cawatso3 extends Bot {
         // Values for square tables copied from
         // https://www.chessprogramming.org/Simplified_Evaluation_Function
 
-        System.out.println("Calculating piece square value");
         double value = 0;
         boolean maximizingPlayer = piece.player == Player.WHITE;
 
@@ -427,7 +432,6 @@ public class Cawatso3 extends Bot {
         // Idea for looping through possible moves taken from
         // https://stackoverflow.com/questions/71594433/how-to-write-the-moves-the-knight-can-perform
 
-        System.out.println("Calculating mobility score");
         double value = 0;
         boolean maximizingPlayer = piece.player == Player.WHITE;
 
@@ -541,7 +545,7 @@ public class Cawatso3 extends Bot {
                 }
             }
         } else {
-            
+
         }
 
         for (Piece piece : state.board) {
