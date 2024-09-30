@@ -31,7 +31,7 @@ public class Cawatso3 extends Bot {
                 maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
         List<Result> bestMoves = new ArrayList<>();
 
-        for (int depth = 0; depth < 6; depth++) {
+        for (int depth = 0; depth < 4; depth++) {
 
             bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.QUIESCENCE);
             bestMoves.add(bestMove);
@@ -79,9 +79,12 @@ public class Cawatso3 extends Bot {
             for (int[] move : pawnMoves) {
                 int newFile = piece.file + move[0];
                 int newRank = piece.rank + move[1];
-                if (isMoveLegal(state, piece, new Pawn(piece.player, newFile, newRank))) {
-                    children.add(state.next(piece, new Pawn(piece.player, newFile, newRank)));
+                if (state.board.pieceAt(newFile, newRank)) {
+                    if (isMoveLegal(state, piece, new Pawn(piece.player, newFile, newRank))) {
+                        children.add(state.next(piece, new Pawn(piece.player, newFile, newRank)));
+                    }
                 }
+                
             }
         } else if (piece.getClass() == Knight.class) {
             int[][] knightMoves = {
@@ -91,8 +94,10 @@ public class Cawatso3 extends Bot {
             for (int[] move : knightMoves) {
                 int newFile = piece.file + move[0];
                 int newRank = piece.rank + move[1];
-                if (isMoveLegal(state, piece, new Knight(piece.player, newFile, newRank))) {
-                    children.add(state.next(piece, new Knight(piece.player, newFile, newRank)));
+                if (state.board.pieceAt(newFile, newRank)) {
+                    if (isMoveLegal(state, piece, new Knight(piece.player, newFile, newRank))) {
+                        children.add(state.next(piece, new Knight(piece.player, newFile, newRank)));
+                    }
                 }
             }
         } else if (piece.getClass() == Bishop.class) {
@@ -103,8 +108,10 @@ public class Cawatso3 extends Bot {
                 for (int i = 1; i < 8; i++) {
                     int newFile = piece.file + i * move[0];
                     int newRank = piece.rank + i * move[1];
-                    if (isMoveLegal(state, piece, new Bishop(piece.player, newFile, newRank))) {
-                        children.add(state.next(piece, new Bishop(piece.player, newFile, newRank)));
+                    if (state.board.pieceAt(newFile, newRank)) {
+                        if (isMoveLegal(state, piece, new Bishop(piece.player, newFile, newRank))) {
+                            children.add(state.next(piece, new Bishop(piece.player, newFile, newRank)));
+                        }
                     }
                 }
             }
@@ -116,8 +123,10 @@ public class Cawatso3 extends Bot {
                 for (int i = 1; i < 8; i++) {
                     int newFile = piece.file + i * move[0];
                     int newRank = piece.rank + i * move[1];
-                    if (isMoveLegal(state, piece, new Rook(piece.player, newFile, newRank))) {
-                        children.add(state.next(piece, new Rook(piece.player, newFile, newRank)));
+                    if (state.board.pieceAt(newFile, newRank)) {
+                        if (isMoveLegal(state, piece, new Rook(piece.player, newFile, newRank))) {
+                            children.add(state.next(piece, new Rook(piece.player, newFile, newRank)));
+                        }
                     }
                 }
             }
@@ -130,10 +139,12 @@ public class Cawatso3 extends Bot {
                 for (int i = 1; i < 8; i++) {
                     int newFile = piece.file + i * move[0];
                     int newRank = piece.rank + i * move[1];
-                    if (isMoveLegal(state, piece, new Queen(piece.player, newFile, newRank))) {
-                        children.add(state.next(piece, new Queen(piece.player, newFile, newRank)));
-                    }
+                    if (state.board.pieceAt(newFile, newRank)) {
+                        if (isMoveLegal(state, piece, new Queen(piece.player, newFile, newRank))) {
+                            children.add(state.next(piece, new Queen(piece.player, newFile, newRank)));
+                        }
                 }
+            }
             }
         } else if (piece.getClass() == King.class) {
             int[][] kingMoves = {
@@ -143,8 +154,10 @@ public class Cawatso3 extends Bot {
             for (int[] move : kingMoves) {
                 int newFile = piece.file + move[0];
                 int newRank = piece.rank + move[1];
-                if (isMoveLegal(state, piece, new King(piece.player, newFile, newRank))) {
-                    children.add(state.next(piece, new King(piece.player, newFile, newRank)));
+                if (state.board.pieceAt(newFile, newRank)) {
+                    if (isMoveLegal(state, piece, new King(piece.player, newFile, newRank))) {
+                        children.add(state.next(piece, new King(piece.player, newFile, newRank)));
+                    }
                 }
             }
         }
@@ -164,15 +177,21 @@ public class Cawatso3 extends Bot {
         ArrayList<State> children = new ArrayList<>();
 
         Iterator<State> iterator = state.next().iterator();
+        int counter = 0;
 
-        while (!state.searchLimitReached() && iterator.hasNext()) {
+        while (!state.searchLimitReached() && iterator.hasNext() && counter < 20) {
             State move = iterator.next();
-            long hash = move.hashCode();
+            // long hash = move.hashCode();
 
-            if (!visitedStates.containsKey(hash)) {
-                visitedStates.put(hash, move);
-                children.add(move);
-            }
+            // if (!visitedStates.containsKey(hash)) {
+            //     visitedStates.put(hash, move);
+            //     children.add(move);
+            //     counter++;
+            // }
+
+            children.add(move);
+            counter++;
+
         }
 
         return children;
@@ -284,18 +303,22 @@ public class Cawatso3 extends Bot {
     }
 
     private Result materialValue(State state) {
+        System.out.println("Calculating material value");
         double value = 0;
+
+        value += state.player == Player.WHITE ? evaluateKingSafety(state) : -evaluateKingSafety(state);
+
         for (Piece piece : state.board) {
             value += rawMaterialValue(piece);
             value += getPieceSquareValue(state, piece);
             value += mobilityScore(state, piece);
-            value += state.player == Player.WHITE ? evaluateKingSafety(state) : -evaluateKingSafety(state);
         }
 
         return new Result(state, value);
     }
 
     private double rawMaterialValue(Piece piece) {
+        System.out.println("Calculating raw material value");
         double value = 0;
 
         boolean maximizingPlayer = piece.player == Player.WHITE;
@@ -362,6 +385,7 @@ public class Cawatso3 extends Bot {
         // Values for square tables copied from
         // https://www.chessprogramming.org/Simplified_Evaluation_Function
 
+        System.out.println("Calculating piece square value");
         double value = 0;
         boolean maximizingPlayer = piece.player == Player.WHITE;
 
@@ -403,6 +427,7 @@ public class Cawatso3 extends Bot {
         // Idea for looping through possible moves taken from
         // https://stackoverflow.com/questions/71594433/how-to-write-the-moves-the-knight-can-perform
 
+        System.out.println("Calculating mobility score");
         double value = 0;
         boolean maximizingPlayer = piece.player == Player.WHITE;
 
@@ -487,8 +512,12 @@ public class Cawatso3 extends Bot {
 
     private boolean isMoveLegal(State state, Piece from, Piece to) {
         try {
-            state.next(from, to);
-            return true;
+            if (!state.searchLimitReached()) {
+                state.next(from, to);
+                return true;
+            } else {
+                return false;
+            }
         } catch (IllegalArgumentException e) {
             return false;
         }
