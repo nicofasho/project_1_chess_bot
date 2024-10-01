@@ -166,7 +166,7 @@ public class Cawatso4 extends Bot {
         return value;
     }
 
-    private ArrayList<State> gatherChildren(State state) {
+    /* private ArrayList<State> gatherChildren(State state) {
         ArrayList<State> children = new ArrayList<>();
         Iterator<State> iterator = state.next().iterator();
 
@@ -180,6 +180,21 @@ public class Cawatso4 extends Bot {
             }
         }
         return children;
+    } */
+    
+    private ArrayList<State> gatherChildren(State state) {
+        // build the list manually from possible moves of every
+        // one of our pieces on the board
+        
+        ArrayList<State> children = new ArrayList<>();
+
+        for (Piece piece : state.board) {
+            if (piece.player == state.player) {
+                try {
+                    // build possible moves of said piece based on rules of its movement
+                }
+            }
+        }
     }
 
 }
