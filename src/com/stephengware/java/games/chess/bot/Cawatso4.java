@@ -26,7 +26,7 @@ public class Cawatso4 extends Bot {
 
         List<Result> results = new ArrayList<>();
 
-        for (int depth = 0; depth < 3; depth++) {
+        for (int depth = 0; depth < 5; depth++) {
             if (root.searchLimitReached()) {
                 break;
             }
@@ -90,8 +90,12 @@ public class Cawatso4 extends Bot {
             return new Result(state, evaluateState(state));
         }
 
-        if (detectCheckmate(state)) {
-            return new Result(state, Double.NEGATIVE_INFINITY);
+        if (state.over) {
+            if (state.check) {
+                return new Result(state, Double.NEGATIVE_INFINITY);
+            } else {
+                return new Result(state, Double.POSITIVE_INFINITY);
+            }
         }
 
         Result best = new Result(state, Double.NEGATIVE_INFINITY);
@@ -117,8 +121,12 @@ public class Cawatso4 extends Bot {
             return new Result(state, evaluateState(state));
         }
 
-        if (detectCheckmate(state)) {
-            return new Result(state, Double.POSITIVE_INFINITY);
+        if (state.over) {
+            if (state.check) {
+                return new Result(state, Double.POSITIVE_INFINITY);
+            } else {
+                return new Result(state, Double.NEGATIVE_INFINITY);
+            }
         }
 
         Result best = new Result(state, Double.POSITIVE_INFINITY);
@@ -144,6 +152,7 @@ public class Cawatso4 extends Bot {
 
         for (Piece piece : state.board) {
             value += rawMaterialValue(piece);
+            value += getPieceSquareValue(state, piece);
         }
 
         return value;
@@ -310,6 +319,51 @@ public class Cawatso4 extends Bot {
         return moves;
     }
 
+    private double getPieceSquareValue(State state, Piece piece) {
+        // Values for square tables copied from
+        // https://www.chessprogramming.org/Simplified_Evaluation_Function
+
+        double value = 0;
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            value += maximizingPlayer ? whitePawnPieceSquareTable[piece.file][piece.rank]
+                    : blackPawnPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Knight.class) {
+            value += maximizingPlayer ? whiteKnightPieceSquareTable[piece.file][piece.rank]
+                    : blackKnightPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Bishop.class) {
+            value += maximizingPlayer ? whiteBishopPieceSquareTable[piece.file][piece.rank]
+                    : blackBishopPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Rook.class) {
+            value += maximizingPlayer ? whiteRookPieceSquareTable[piece.file][piece.rank]
+                    : blackRookPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Queen.class) {
+            value += maximizingPlayer ? whiteQueenPieceSquareTable[piece.file][piece.rank]
+                    : blackQueenPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == King.class) {
+            GamePhase gamePhase = determineGamePhase(state);
+            if (gamePhase == GamePhase.MIDDLE_GAME) {
+                value += maximizingPlayer ? whiteKingMiddleGamePieceSquareTable[piece.file][piece.rank]
+                        : blackKingMiddleGamePieceSquareTable[piece.file][piece.rank];
+            } else {
+                value += maximizingPlayer ? whiteKingEndGamePieceSquareTable[piece.file][piece.rank]
+                        : blackKingEndGamePieceSquareTable[piece.file][piece.rank];
+            }
+        }
+
+        if (!maximizingPlayer) {
+            value *= -1;
+        }
+
+        return value;
+    }
+
     private boolean isMoveLegal(State state, Piece from, Piece to) {
         try {
             if (!state.searchLimitReached()) {
@@ -322,4 +376,193 @@ public class Cawatso4 extends Bot {
             return false;
         }
     }
+
+    private enum GamePhase {
+        MIDDLE_GAME, END_GAME
+    }
+
+    private GamePhase determineGamePhase(State state) {
+        int whiteQueenCount = 0;
+        int blackQueenCount = 0;
+        int whiteOtherPiecesCount = 0;
+        int blackOtherPiecesCount = 0;
+
+        for (Piece piece : state.board) {
+            if (piece.getClass() == Queen.class) {
+                if (piece.player == Player.WHITE) {
+                    whiteQueenCount++;
+                } else if (piece.player == Player.BLACK) {
+                    blackQueenCount++;
+                }
+            } else if (piece.getClass() != King.class) {
+                if (piece.player == Player.WHITE) {
+                    whiteOtherPiecesCount++;
+                } else if (piece.player == Player.BLACK) {
+                    blackOtherPiecesCount++;
+                }
+            }
+        }
+
+        boolean whiteEndGame = (whiteQueenCount == 0) || (whiteQueenCount == 1 && whiteOtherPiecesCount <= 1);
+        boolean blackEndGame = (blackQueenCount == 0) || (blackQueenCount == 1 && blackOtherPiecesCount <= 1);
+
+        if (whiteEndGame && blackEndGame) {
+            return GamePhase.END_GAME;
+        } else {
+            return GamePhase.MIDDLE_GAME;
+        }
+    }
+
+    private double[][] whitePawnPieceSquareTable = new double[][] {
+            { 0, 0, 0, 0, 0, 0, 0, 0 },
+            { 5, 10, 10, -20, -20, 10, 10, 5 },
+            { 5, -5, -10, 0, 0, -10, -5, 5 },
+            { 0, 0, 0, 20, 20, 0, 0, 0 },
+            { 5, 5, 10, 25, 25, 10, 5, 5 },
+            { 10, 10, 20, 30, 30, 20, 10, 10 },
+            { 50, 50, 50, 50, 50, 50, 50, 50 },
+            { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+    private double[][] blackPawnPieceSquareTable = new double[][] {
+            { 0, 0, 0, 0, 0, 0, 0, 0 },
+            { 50, 50, 50, 50, 50, 50, 50, 50 },
+            { 10, 10, 20, 30, 30, 20, 10, 10 },
+            { 5, 5, 10, 25, 25, 10, 5, 5 },
+            { 0, 0, 0, 20, 20, 0, 0, 0 },
+            { 5, -5, -10, 0, 0, -10, -5, 5 },
+            { 5, 10, 10, -20, -20, 10, 10, 5 },
+            { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+
+    private double[][] whiteKnightPieceSquareTable = new double[][] {
+            { -50, -40, -30, -30, -30, -30, -40, -50 },
+            { -40, -20, 0, 0, 0, 0, -20, -40 },
+            { -30, 0, 10, 15, 15, 10, 0, -30 },
+            { -30, 5, 15, 20, 20, 15, 5, -30 },
+            { -30, 0, 15, 20, 20, 15, 0, -30 },
+            { -30, 5, 10, 15, 15, 10, 5, -30 },
+            { -40, -20, 0, 5, 5, 0, -20, -40 },
+            { -50, -40, -30, -30, -30, -30, -40, -50 }
+    };
+
+    private double[][] blackKnightPieceSquareTable = new double[][] {
+            { -50, -40, -30, -30, -30, -30, -40, -50 },
+            { -40, -20, 0, 5, 5, 0, -20, -40 },
+            { -30, 5, 10, 15, 15, 10, 5, -30 },
+            { -30, 0, 15, 20, 20, 15, 0, -30 },
+            { -30, 5, 15, 20, 20, 15, 5, -30 },
+            { -30, 0, 10, 15, 15, 10, 0, -30 },
+            { -40, -20, 0, 0, 0, 0, -20, -40 },
+            { -50, -40, -30, -30, -30, -30, -40, -50 }
+    };
+
+    private double[][] whiteBishopPieceSquareTable = new double[][] {
+            { -20, -10, -10, -10, -10, -10, -10, -20 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -10, 0, 5, 10, 10, 5, 0, -10 },
+            { -10, 5, 5, 10, 10, 5, 5, -10 },
+            { -10, 0, 10, 10, 10, 10, 0, -10 },
+            { -10, 10, 10, 10, 10, 10, 10, -10 },
+            { -10, 5, 0, 0, 0, 0, 5, -10 },
+            { -20, -10, -10, -10, -10, -10, -10, -20 }
+    };
+
+    private double[][] blackBishopPieceSquareTable = new double[][] {
+            { -20, -10, -10, -10, -10, -10, -10, -20 },
+            { -10, 5, 0, 0, 0, 0, 5, -10 },
+            { -10, 10, 10, 10, 10, 10, 10, -10 },
+            { -10, 0, 10, 10, 10, 10, 0, -10 },
+            { -10, 5, 5, 10, 10, 5, 5, -10 },
+            { -10, 0, 5, 10, 10, 5, 0, -10 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -20, -10, -10, -10, -10, -10, -10, -20 }
+    };
+
+    private double[][] whiteRookPieceSquareTable = new double[][] {
+            { 0, 0, 0, 0, 0, 0, 0, 0 },
+            { 5, 10, 10, 10, 10, 10, 10, 5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { 0, 0, 0, 5, 5, 0, 0, 0 }
+    };
+
+    private double[][] blackRookPieceSquareTable = new double[][] {
+            { 0, 0, 0, 5, 5, 0, 0, 0 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { -5, 0, 0, 0, 0, 0, 0, -5 },
+            { 5, 10, 10, 10, 10, 10, 10, 5 },
+            { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+
+    private double[][] whiteQueenPieceSquareTable = new double[][] {
+            { -20, -10, -10, -5, -5, -10, -10, -20 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -10, 0, 5, 5, 5, 5, 0, -10 },
+            { -5, 0, 5, 5, 5, 5, 0, -5 },
+            { 0, 0, 5, 5, 5, 5, 0, -5 },
+            { -10, 5, 5, 5, 5, 5, 0, -10 },
+            { -10, 0, 5, 0, 0, 0, 0, -10 },
+            { -20, -10, -10, -5, -5, -10, -10, -20 }
+    };
+
+    private double[][] blackQueenPieceSquareTable = new double[][] {
+            { -20, -10, -10, -5, -5, -10, -10, -20 },
+            { -10, 0, 5, 0, 0, 0, 0, -10 },
+            { -10, 5, 5, 5, 5, 5, 0, -10 },
+            { 0, 0, 5, 5, 5, 5, 0, -5 },
+            { -5, 0, 5, 5, 5, 5, 0, -5 },
+            { -10, 0, 5, 5, 5, 5, 0, -10 },
+            { -10, 0, 0, 0, 0, 0, 0, -10 },
+            { -20, -10, -10, -5, -5, -10, -10, -20 }
+    };
+
+    private double[][] whiteKingMiddleGamePieceSquareTable = new double[][] {
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -20, -30, -30, -40, -40, -30, -30, -20 },
+            { -10, -20, -20, -20, -20, -20, -20, -10 },
+            { 20, 20, 0, 0, 0, 0, 20, 20 },
+            { 20, 30, 10, 0, 0, 10, 30, 20 }
+    };
+
+    private double[][] blackKingMiddleGamePieceSquareTable = new double[][] {
+            { 20, 30, 10, 0, 0, 10, 30, 20 },
+            { 20, 20, 0, 0, 0, 0, 20, 20 },
+            { -10, -20, -20, -20, -20, -20, -20, -10 },
+            { -20, -30, -30, -40, -40, -30, -30, -20 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 },
+            { -30, -40, -40, -50, -50, -40, -40, -30 }
+    };
+
+    private double[][] whiteKingEndGamePieceSquareTable = new double[][] {
+            { -50, -40, -30, -20, -20, -30, -40, -50 },
+            { -30, -20, -10, 0, 0, -10, -20, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -30, 0, 0, 0, 0, -30, -30 },
+            { -50, -30, -30, -30, -30, -30, -30, -50 }
+    };
+
+    private double[][] blackKingEndGamePieceSquareTable = new double[][] {
+            { -50, -30, -30, -30, -30, -30, -30, -50 },
+            { -30, -30, 0, 0, 0, 0, -30, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 30, 40, 40, 30, -10, -30 },
+            { -30, -10, 20, 30, 30, 20, -10, -30 },
+            { -30, -20, -10, 0, 0, -10, -20, -30 },
+            { -50, -40, -30, -20, -20, -30, -40, -50 }
+    };
 }
