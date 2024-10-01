@@ -22,8 +22,21 @@ public class Cawatso3 extends Bot {
 
     private HashMap<Long, State> visitedStates = new HashMap<>();
 
+    boolean isWinningState(State state) {
+        if (state.over) {
+            if (!state.check) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected State chooseMove(State root) {
+
+        if (isWinningState(root)) {
+            return root;
+        }
 
         int positionCounter = 1;
 
@@ -33,19 +46,21 @@ public class Cawatso3 extends Bot {
                 maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
         List<Result> bestMoves = new ArrayList<>();
 
-        for (int depth = 0; depth < 2; depth++) {
+        for (int depth = 0; depth < 3; depth++) {
 
             if (bestMoves.size() > 0) {
                 positionCounter = 1;
                 bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
             }
 
-            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.QUIESCENCE, bestMoves.size() > 0 ? bestMove.value
-                    : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.QUIESCENCE,
+                    bestMoves.size() > 0 ? bestMove.value
+                            : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
             bestMoves.add(bestMove);
 
-            bestMove = min_max_ab(root, root.player == Player.WHITE, depth, SearchType.MINMAX, bestMoves.size() > 0 ? bestMove.value
-            : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.MINMAX,
+                    bestMoves.size() > 0 ? bestMove.value
+                            : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
             bestMoves.add(bestMove);
 
             if (root.searchLimitReached()) {
@@ -89,7 +104,15 @@ public class Cawatso3 extends Bot {
                 int newRank = piece.rank + move[1];
                 if (state.board.pieceAt(newFile, newRank)) {
                     if (isMoveLegal(state, piece, new Pawn(piece.player, newFile, newRank))) {
-                        children.add(state.next(piece, new Pawn(piece.player, newFile, newRank)));
+
+                        State newMove = state.next(piece, new Pawn(piece.player, newFile, newRank));
+                        long hash = newMove.hashCode();
+
+                        if (!visitedStates.containsKey(hash)) {
+                            visitedStates.put(hash, newMove);
+                            children.add(newMove);
+                        }
+
                     }
                 }
 
@@ -104,7 +127,15 @@ public class Cawatso3 extends Bot {
                 int newRank = piece.rank + move[1];
                 if (state.board.pieceAt(newFile, newRank)) {
                     if (isMoveLegal(state, piece, new Knight(piece.player, newFile, newRank))) {
-                        children.add(state.next(piece, new Knight(piece.player, newFile, newRank)));
+
+                        State newMove = state.next(piece, new Knight(piece.player, newFile, newRank));
+                        long hash = newMove.hashCode();
+
+                        if (!visitedStates.containsKey(hash)) {
+                            visitedStates.put(hash, newMove);
+                            children.add(newMove);
+                        }
+
                     }
                 }
             }
@@ -118,8 +149,16 @@ public class Cawatso3 extends Bot {
                     int newRank = piece.rank + i * move[1];
                     if (state.board.pieceAt(newFile, newRank)) {
                         if (isMoveLegal(state, piece, new Bishop(piece.player, newFile, newRank))) {
-                            children.add(state.next(piece, new Bishop(piece.player, newFile, newRank)));
+
+                            State newMove = state.next(piece, new Bishop(piece.player, newFile, newRank));
+                            long hash = newMove.hashCode();
+
+                            if (!visitedStates.containsKey(hash)) {
+                                visitedStates.put(hash, newMove);
+                                children.add(newMove);
+                            }
                         }
+
                     }
                 }
             }
@@ -133,7 +172,15 @@ public class Cawatso3 extends Bot {
                     int newRank = piece.rank + i * move[1];
                     if (state.board.pieceAt(newFile, newRank)) {
                         if (isMoveLegal(state, piece, new Rook(piece.player, newFile, newRank))) {
-                            children.add(state.next(piece, new Rook(piece.player, newFile, newRank)));
+
+                            State newMove = state.next(piece, new Rook(piece.player, newFile, newRank));
+                            long hash = newMove.hashCode();
+
+                            if (!visitedStates.containsKey(hash)) {
+                                visitedStates.put(hash, newMove);
+                                children.add(newMove);
+                            }
+
                         }
                     }
                 }
@@ -149,7 +196,15 @@ public class Cawatso3 extends Bot {
                     int newRank = piece.rank + i * move[1];
                     if (state.board.pieceAt(newFile, newRank)) {
                         if (isMoveLegal(state, piece, new Queen(piece.player, newFile, newRank))) {
-                            children.add(state.next(piece, new Queen(piece.player, newFile, newRank)));
+
+                            State newMove = state.next(piece, new Queen(piece.player, newFile, newRank));
+                            long hash = newMove.hashCode();
+
+                            if (!visitedStates.containsKey(hash)) {
+                                visitedStates.put(hash, newMove);
+                                children.add(newMove);
+                            }
+
                         }
                     }
                 }
@@ -164,7 +219,15 @@ public class Cawatso3 extends Bot {
                 int newRank = piece.rank + move[1];
                 if (state.board.pieceAt(newFile, newRank)) {
                     if (isMoveLegal(state, piece, new King(piece.player, newFile, newRank))) {
-                        children.add(state.next(piece, new King(piece.player, newFile, newRank)));
+
+                        State newMove = state.next(piece, new King(piece.player, newFile, newRank));
+                        long hash = newMove.hashCode();
+
+                        if (!visitedStates.containsKey(hash)) {
+                            visitedStates.put(hash, newMove);
+                            children.add(newMove);
+                        }
+
                     }
                 }
             }
@@ -173,7 +236,8 @@ public class Cawatso3 extends Bot {
         return children;
     }
 
-    private Result min_max_ab(State state, boolean maximizingPlayer, int depth, SearchType searchType, double bestValue) {
+    private Result min_max_ab(State state, boolean maximizingPlayer, int depth, SearchType searchType,
+            double bestValue) {
         Result result = maximizingPlayer
                 ? max_ab(state, depth, bestValue, Double.POSITIVE_INFINITY, searchType)
                 : min_ab(state, depth, Double.NEGATIVE_INFINITY, bestValue, searchType);
@@ -189,16 +253,13 @@ public class Cawatso3 extends Bot {
 
         while (!state.searchLimitReached() && iterator.hasNext() && counter < 20) {
             State move = iterator.next();
-            // long hash = move.hashCode();
+            long hash = move.hashCode();
 
-            // if (!visitedStates.containsKey(hash)) {
-            // visitedStates.put(hash, move);
-            // children.add(move);
-            // counter++;
-            // }
-
-            children.add(move);
-            counter++;
+            if (!visitedStates.containsKey(hash)) {
+                visitedStates.put(hash, move);
+                children.add(move);
+                counter++;
+            }
 
         }
 
@@ -207,12 +268,17 @@ public class Cawatso3 extends Bot {
 
     private Result max_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
         if (depth == 0 || state.countDescendants() == 0) {
-            Result result = materialValue(state);
-            if (result.value == Double.POSITIVE_INFINITY) {
-                System.out.println("Infinity at depth " + depth + "in max_ab");
-            }
-            return result;
+            return materialValue(state);
         }
+
+        if (isWinningState(state)) {
+            return new Result(state, Double.POSITIVE_INFINITY);
+        }
+
+        if (state.over && !state.check) {
+            return new Result(state, Double.NEGATIVE_INFINITY);
+        }
+
         Result best = new Result(state, Double.NEGATIVE_INFINITY);
 
         ArrayList<State> children = new ArrayList<>();
@@ -232,35 +298,28 @@ public class Cawatso3 extends Bot {
         for (State child : children) {
             Result value = min_ab(child, depth - 1, alpha, beta, searchType);
 
-            if (value.state.check && value.state.previous == null) {
-                value.value += 500;
-            }
-
-            if (value.state.check && value.state.over && value.state.previous == null) {
-                value.value += 1000;
-            }
-
             if (value.value > best.value) {
                 best = value;
             }
-
-            if (best.value >= beta) {
-                return best;
-            }
             alpha = Math.max(alpha, best.value);
-        }
-        if (best.value == Double.POSITIVE_INFINITY) {
-            System.out.println("Infinity at the bottom of max_ab");
+
+            if (beta <= alpha)
+                break;
         }
         return best;
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        if (depth == 0 || state.countDescendants() == 0) {
-            if (materialValue(state).value == Double.POSITIVE_INFINITY) {
-                System.out.println("Infinity at depth " + depth + "in min_ab");
-            }
+        if (depth == 0 || state.countDescendants() == 0 || isWinningState(state)) {
             return materialValue(state);
+        }
+
+        if (isWinningState(state)) {
+            return new Result(state, Double.NEGATIVE_INFINITY);
+        }
+
+        if (state.over && !state.check) {
+            return new Result(state, Double.POSITIVE_INFINITY);
         }
 
         Result best = new Result(state, Double.POSITIVE_INFINITY);
@@ -281,32 +340,16 @@ public class Cawatso3 extends Bot {
         for (State child : children) {
             Result value = max_ab(child, depth - 1, alpha, beta, searchType);
 
-            if (value.value == Double.POSITIVE_INFINITY) {
-                System.out.println("Infinity in the loop in min_ab");
-            }
-
-            if (value.state.check && value.state.previous == null) {
-                value.value -= 500;
-            }
-
-            if (value.state.check && value.state.over && value.state.previous == null) {
-                value.value -= 1000;
-            }
-
-            if (value.value < best.value) {
+            if (best.value < value.value) {
                 best = value;
             }
-
-            if (best.value <= alpha) {
-                return best;
-            }
-
             beta = Math.min(beta, best.value);
+
+            if (beta <= alpha)
+                break;
+
         }
 
-        if (best.value == Double.POSITIVE_INFINITY) {
-            System.out.println("Infinity at the bottom of min_ab");
-        }
         return best;
     }
 
@@ -545,7 +588,17 @@ public class Cawatso3 extends Bot {
                 }
             }
         } else {
-
+            int[] ranks = { king.rank - 1, king.rank, king.rank + 1 };
+            for (int rank : ranks) {
+                if (state.board.pieceAt(king.file - 1, rank)) {
+                    Piece piece = state.board.getPieceAt(king.file - 1, rank);
+                    if (piece.player == state.player && piece.getClass() == Pawn.class) {
+                        value++;
+                    } else {
+                        value--;
+                    }
+                }
+            }
         }
 
         for (Piece piece : state.board) {
