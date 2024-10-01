@@ -72,13 +72,13 @@ public class Cawatso3 extends Bot {
 
         positionCounter = 1;
         while (bestMove.state == root) {
+            System.out.println("bestMove was root");
             positionCounter++;
             bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
         }
 
-        System.out.println("Looping back to root");
         while (bestMove.state.previous != root) {
-
+            System.out.println("Looping back to root");
             if (bestMove.state == root) {
                 break;
             }
@@ -275,7 +275,7 @@ public class Cawatso3 extends Bot {
             return new Result(state, Double.POSITIVE_INFINITY);
         }
 
-        if (state.over && !state.check) {
+        if (state.over && state.check) {
             return new Result(state, Double.NEGATIVE_INFINITY);
         }
 
@@ -310,7 +310,7 @@ public class Cawatso3 extends Bot {
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        if (depth == 0 || state.countDescendants() == 0 || isWinningState(state)) {
+        if (depth == 0 || state.countDescendants() == 0 ) {
             return materialValue(state);
         }
 
@@ -318,7 +318,7 @@ public class Cawatso3 extends Bot {
             return new Result(state, Double.NEGATIVE_INFINITY);
         }
 
-        if (state.over && !state.check) {
+        if (state.over && state.check) {
             return new Result(state, Double.POSITIVE_INFINITY);
         }
 
@@ -340,7 +340,7 @@ public class Cawatso3 extends Bot {
         for (State child : children) {
             Result value = max_ab(child, depth - 1, alpha, beta, searchType);
 
-            if (best.value < value.value) {
+            if (best.value > value.value) {
                 best = value;
             }
             beta = Math.min(beta, best.value);
