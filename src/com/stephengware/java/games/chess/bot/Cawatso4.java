@@ -37,13 +37,35 @@ public class Cawatso4 extends Bot {
 
         results.sort(Comparator.comparingDouble(result -> result.value));
 
+        System.out.println("printing results list");
+        for (Result result : results) {
+            System.out.println(result.state);
+            System.out.println(result.value);
+        }
+
         int position = 1;
+        Result bestMove = results.get(results.size() - position);
 
         if (maximizingPlayer) {
-            return results.get(results.size() - position).state;
+            bestMove = results.get(results.size() - position);
         } else {
-            return results.get(position - 1).state;
+            bestMove = results.get(position - 1);
         }
+
+        try {
+            while (bestMove.state.previous != root) {
+                bestMove.state = bestMove.state.previous;
+            }
+        } catch (NullPointerException e) {
+            position++;
+            if (maximizingPlayer) {
+                bestMove = results.get(results.size() - position);
+            } else {
+                bestMove = results.get(position - 1);
+            }
+        }
+
+        return bestMove.state;
     }
 
     private boolean detectCheckmate(State state) {
@@ -69,11 +91,7 @@ public class Cawatso4 extends Bot {
         }
 
         if (detectCheckmate(state)) {
-            if (state.player == Player.WHITE) {
-                return new Result(state, Double.NEGATIVE_INFINITY);
-            } else {
-                return new Result(state, Double.POSITIVE_INFINITY);
-            }
+            return new Result(state, Double.NEGATIVE_INFINITY);
         }
 
         Result best = new Result(state, Double.NEGATIVE_INFINITY);
@@ -100,11 +118,7 @@ public class Cawatso4 extends Bot {
         }
 
         if (detectCheckmate(state)) {
-            if (state.player == Player.WHITE) {
-                return new Result(state, Double.NEGATIVE_INFINITY);
-            } else {
-                return new Result(state, Double.POSITIVE_INFINITY);
-            }
+            return new Result(state, Double.POSITIVE_INFINITY);
         }
 
         Result best = new Result(state, Double.POSITIVE_INFINITY);
@@ -166,35 +180,146 @@ public class Cawatso4 extends Bot {
         return value;
     }
 
-    /* private ArrayList<State> gatherChildren(State state) {
-        ArrayList<State> children = new ArrayList<>();
-        Iterator<State> iterator = state.next().iterator();
-
-        while (iterator.hasNext() && !state.searchLimitReached()) {
-            State child = iterator.next();
-            long hash = child.hashCode();
-
-            if (!visitedStates.containsKey(hash)) {
-                visitedStates.put(hash, child);
-                children.add(child);
-            }
-        }
-        return children;
-    } */
-    
     private ArrayList<State> gatherChildren(State state) {
         // build the list manually from possible moves of every
         // one of our pieces on the board
-        
+
         ArrayList<State> children = new ArrayList<>();
 
         for (Piece piece : state.board) {
             if (piece.player == state.player) {
-                try {
-                    // build possible moves of said piece based on rules of its movement
+                // build possible moves of said piece based on rules of its movement
+                if (piece.getClass() == Pawn.class) {
+                    int[][] pawnMoves = generatePawnMoves(piece);
+                    for (int[] move : pawnMoves) {
+                        int x = piece.rank + move[0];
+                        int y = piece.file + move[1];
+
+                        Pawn newPawn = new Pawn(piece.player, y, x);
+                        if (isMoveLegal(state, piece, newPawn)) {
+                            children.add(state.next(piece, newPawn));
+                        }
+                    }
+                }
+                if (piece.getClass() == Knight.class) {
+                    int[][] knightMoves = generateKnightMoves();
+
+                    for (int[] move : knightMoves) {
+                        int x = piece.rank + move[0];
+                        int y = piece.file + move[1];
+
+                        Knight newKnight = new Knight(piece.player, y, x);
+                        if (isMoveLegal(state, piece, newKnight)) {
+                            children.add(state.next(piece, newKnight));
+                        }
+                    }
+                }
+                if (piece.getClass() == Bishop.class) {
+                    int[][] bishopMoves = generateBishopMoves();
+
+                    for (int i = 1; i < 8; i++) {
+                        for (int[] move : bishopMoves) {
+                            int x = piece.rank + move[0] * i;
+                            int y = piece.file + move[1] * i;
+
+                            Bishop newBishop = new Bishop(piece.player, y, x);
+                            if (isMoveLegal(state, piece, newBishop)) {
+                                children.add(state.next(piece, newBishop));
+                            }
+                        }
+                    }
+                }
+                if (piece.getClass() == Rook.class) {
+                    int[][] rookMoves = generateRookMoves();
+
+                    for (int i = 1; i < 8; i++) {
+                        for (int[] move : rookMoves) {
+                            int x = piece.rank + move[0] * i;
+                            int y = piece.file + move[1] * i;
+
+                            Rook newRook = new Rook(piece.player, y, x);
+                            if (isMoveLegal(state, piece, newRook)) {
+                                children.add(state.next(piece, newRook));
+                            }
+                        }
+                    }
+                }
+                if (piece.getClass() == Queen.class) {
+                    int[][] queenMoves = generateQueenMoves();
+
+                    for (int i = 1; i < 8; i++) {
+                        for (int[] move : queenMoves) {
+                            int x = piece.rank + move[0] * i;
+                            int y = piece.file + move[1] * i;
+
+                            Queen newQueen = new Queen(piece.player, y, x);
+                            if (isMoveLegal(state, piece, newQueen)) {
+                                children.add(state.next(piece, newQueen));
+                            }
+                        }
+                    }
+                }
+                if (piece.getClass() == King.class) {
+                    int[][] kingMoves = generateQueenMoves();
+
+                    for (int[] move : kingMoves) {
+                        int x = piece.rank + move[0];
+                        int y = piece.file + move[1];
+
+                        King newKing = new King(piece.player, y, x);
+                        if (isMoveLegal(state, piece, newKing)) {
+                            children.add(state.next(piece, newKing));
+                        }
+                    }
                 }
             }
         }
+
+        return children;
     }
 
+    private int[][] generateQueenMoves() {
+        int[][] moves = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        return moves;
+    }
+
+    private int[][] generateRookMoves() {
+        int[][] moves = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+        return moves;
+    }
+
+    private int[][] generateBishopMoves() {
+        int[][] moves = { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        return moves;
+    }
+
+    private int[][] generateKnightMoves() {
+        int[][] moves = { { 2, 1 }, { 2, -1 }, { -2, 1 }, { -2, -1 }, { 1, 2 }, { 1, -2 }, { -1, 2 }, { -1, -2 } };
+        return moves;
+    }
+
+    private int[][] generatePawnMoves(Piece piece) {
+        int[][] moves = { { 1, 0 }, { 2, 0 }, { 1, 1 }, { 1, -1 } };
+        if (piece.player == Player.BLACK) {
+            for (int y = 0; y < moves.length; y++) {
+                for (int x = 0; x < moves[y].length; x++) {
+                    moves[y][x] *= -1;
+                }
+            }
+        }
+        return moves;
+    }
+
+    private boolean isMoveLegal(State state, Piece from, Piece to) {
+        try {
+            if (!state.searchLimitReached()) {
+                state.next(from, to);
+                return true;
+            } else {
+                return false;
+            }
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
 }
