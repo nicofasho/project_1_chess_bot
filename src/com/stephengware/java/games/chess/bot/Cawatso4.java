@@ -110,7 +110,6 @@ public class Cawatso4 extends Bot {
                 break;
             }
 
-
         }
         return best;
     }
@@ -139,7 +138,7 @@ public class Cawatso4 extends Bot {
             if (best.value == result.value) {
                 best.state = result.state;
             }
-            
+
             beta = Math.min(beta, best.value);
             if (beta <= alpha) {
                 break;
@@ -155,7 +154,38 @@ public class Cawatso4 extends Bot {
         for (Piece piece : state.board) {
             value += rawMaterialValue(piece);
             value += getPieceSquareValue(state, piece);
+            value += mobilityValue(state, piece);
+            value += kingSafetyValue(state, piece);
         }
+
+        return value;
+    }
+
+    private double mobilityValue(State state, Piece piece) {
+        double value = 0;
+
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            int[][] pawnMoves = generatePawnMoves(piece);
+            for (int[] move : pawnMoves) {
+                int y = piece.file + move[0];
+                int x = piece.rank + move[1];
+
+                Pawn newPawn = new Pawn(piece.player, y, x);
+                if (isMoveLegal(state, piece, newPawn)) {
+                    value += 10;
+                }
+            }
+        }
+
+        return value;
+    }
+
+    private double kingSafetyValue(State state, Piece piece) {
+        double value = 0;
+
+
 
         return value;
     }
@@ -203,8 +233,8 @@ public class Cawatso4 extends Bot {
                 if (piece.getClass() == Pawn.class) {
                     int[][] pawnMoves = generatePawnMoves(piece);
                     for (int[] move : pawnMoves) {
-                        int x = piece.rank + move[0];
-                        int y = piece.file + move[1];
+                        int y = piece.file + move[0];
+                        int x = piece.rank + move[1];
 
                         Pawn newPawn = new Pawn(piece.player, y, x);
                         if (isMoveLegal(state, piece, newPawn)) {
@@ -216,8 +246,8 @@ public class Cawatso4 extends Bot {
                     int[][] knightMoves = generateKnightMoves();
 
                     for (int[] move : knightMoves) {
-                        int x = piece.rank + move[0];
-                        int y = piece.file + move[1];
+                        int y = piece.file + move[0];
+                        int x = piece.rank + move[1];
 
                         Knight newKnight = new Knight(piece.player, y, x);
                         if (isMoveLegal(state, piece, newKnight)) {
@@ -230,8 +260,8 @@ public class Cawatso4 extends Bot {
 
                     for (int i = 1; i < 8; i++) {
                         for (int[] move : bishopMoves) {
-                            int x = piece.rank + move[0] * i;
-                            int y = piece.file + move[1] * i;
+                            int y = piece.file + move[0] * i;
+                            int x = piece.rank + move[1] * i;
 
                             Bishop newBishop = new Bishop(piece.player, y, x);
                             if (isMoveLegal(state, piece, newBishop)) {
@@ -245,8 +275,8 @@ public class Cawatso4 extends Bot {
 
                     for (int i = 1; i < 8; i++) {
                         for (int[] move : rookMoves) {
-                            int x = piece.rank + move[0] * i;
-                            int y = piece.file + move[1] * i;
+                            int y = piece.file + move[0] * i;
+                            int x = piece.rank + move[1] * i;
 
                             Rook newRook = new Rook(piece.player, y, x);
                             if (isMoveLegal(state, piece, newRook)) {
@@ -260,8 +290,8 @@ public class Cawatso4 extends Bot {
 
                     for (int i = 1; i < 8; i++) {
                         for (int[] move : queenMoves) {
-                            int x = piece.rank + move[0] * i;
-                            int y = piece.file + move[1] * i;
+                            int y = piece.file + move[0] * i;
+                            int x = piece.rank + move[1] * i;
 
                             Queen newQueen = new Queen(piece.player, y, x);
                             if (isMoveLegal(state, piece, newQueen)) {
@@ -274,8 +304,8 @@ public class Cawatso4 extends Bot {
                     int[][] kingMoves = generateQueenMoves();
 
                     for (int[] move : kingMoves) {
-                        int x = piece.rank + move[0];
-                        int y = piece.file + move[1];
+                        int y = piece.file + move[0];
+                        int x = piece.rank + move[1];
 
                         King newKing = new King(piece.player, y, x);
                         if (isMoveLegal(state, piece, newKing)) {
