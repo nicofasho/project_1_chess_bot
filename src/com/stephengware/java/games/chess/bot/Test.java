@@ -30,8 +30,8 @@ public class Test {
 				// new Cawatso3(),
 				new Cawatso4(),
 				// new RandomBot(),
-				new GreedyBot(),
-				// new NoviceBot(),
+				// new GreedyBot(),
+				new NoviceBot(),
 //				new BeginnerBot(),
 //				new IntermediateBot(),
 		};

@@ -26,7 +26,7 @@ public class Cawatso4 extends Bot {
 
         List<Result> results = new ArrayList<>();
 
-        for (int depth = 0; depth < 5; depth++) {
+        for (int depth = 0; depth < 3; depth++) {
             if (root.searchLimitReached()) {
                 break;
             }
@@ -177,6 +177,86 @@ public class Cawatso4 extends Bot {
                     value += 10;
                 }
             }
+        }
+        
+        if (piece.getClass() == Knight.class) {
+            int[][] knightMoves = generateKnightMoves();
+
+            for (int[] move : knightMoves) {
+                int y = piece.file + move[0];
+                int x = piece.rank + move[1];
+
+                Knight newKnight = new Knight(piece.player, y, x);
+                if (isMoveLegal(state, piece, newKnight)) {
+                    value += 10;
+                }
+            }
+        }
+        
+        if (piece.getClass() == Bishop.class) {
+            int[][] bishopMoves = generateBishopMoves();
+
+            for (int i = 1; i < 8; i++) {
+                for (int[] move : bishopMoves) {
+                    int y = piece.file + move[0] * i;
+                    int x = piece.rank + move[1] * i;
+
+                    Bishop newBishop = new Bishop(piece.player, y, x);
+                    if (isMoveLegal(state, piece, newBishop)) {
+                        value += 10;
+                    }
+                }
+            }
+        }
+        
+        if (piece.getClass() == Rook.class) {
+            int[][] rookMoves = generateRookMoves();
+
+            for (int i = 1; i < 8; i++) {
+                for (int[] move : rookMoves) {
+                    int y = piece.file + move[0] * i;
+                    int x = piece.rank + move[1] * i;
+
+                    Rook newRook = new Rook(piece.player, y, x);
+                    if (isMoveLegal(state, piece, newRook)) {
+                        value += 10;
+                    }
+                }
+            }
+        }
+        
+        if (piece.getClass() == Queen.class) {
+            int[][] queenMoves = generateQueenMoves();
+
+            for (int i = 1; i < 8; i++) {
+                for (int[] move : queenMoves) {
+                    int y = piece.file + move[0] * i;
+                    int x = piece.rank + move[1] * i;
+
+                    Queen newQueen = new Queen(piece.player, y, x);
+                    if (isMoveLegal(state, piece, newQueen)) {
+                        value += 10;
+                    }
+                }
+            }
+        }
+        
+        if (piece.getClass() == King.class) {
+            int[][] kingMoves = generateQueenMoves();
+
+            for (int[] move : kingMoves) {
+                int y = piece.file + move[0];
+                int x = piece.rank + move[1];
+
+                King newKing = new King(piece.player, y, x);
+                if (isMoveLegal(state, piece, newKing)) {
+                    value += 10;
+                }
+            }
+        }
+        
+        if (!maximizingPlayer) {
+            value *= -1;
         }
 
         return value;
