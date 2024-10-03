@@ -2,3 +2,7 @@ bin/com/stephengware/java/games/chess/bot/Cawatso3$GamePhase.class
 cawatso4.jar
 bots
 bin/*
+bin/com/stephengware/java/games/chess/bot/Cawatso3.class
+bin/com/stephengware/java/games/chess/bot/Cawatso3$SearchType.class
+bin/com/stephengware/java/games/chess/bot/Cawatso4.class
+bin/com/stephengware/java/games/chess/bot/Cawatso4$GamePhase.class
