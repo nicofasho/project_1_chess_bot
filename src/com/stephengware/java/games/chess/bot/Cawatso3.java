@@ -5,10 +5,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 
 import com.stephengware.java.games.chess.state.*;
-import com.stephengware.java.games.chess.bot.Result;
 
 public class Cawatso3 extends Bot {
 
@@ -798,4 +796,15 @@ public class Cawatso3 extends Bot {
             { -30, -20, -10, 0, 0, -10, -20, -30 },
             { -50, -40, -30, -20, -20, -30, -40, -50 }
     };
+
+    private class Result {
+        public State state;
+        public double value;
+
+        public Result(State state, double value) {
+            this.state = state;
+            this.value = value;
+        }
+    }
+
 }
