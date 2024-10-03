@@ -14,29 +14,38 @@ public class Cawatso4 extends Bot {
     }
 
     private HashMap<Long, State> visitedStates = new HashMap<>();
+    private Player player;
 
     @Override
     protected State chooseMove(State root) {
+
+        player = root.player;
 
         boolean maximizingPlayer = root.player == Player.WHITE;
 
         List<Result> results = new ArrayList<>();
 
-        for (int depth = 0; depth < 3; depth++) {
+        for (int depth = 1; depth < 3; depth++) {
             if (root.searchLimitReached()) {
                 break;
             }
+            Result qResult = min_max_ab(root, depth, SearchType.QUIESCENT);
+            if (qResult.state.toString() != "") {
+                results.add(qResult);
+            }
+            // System.out.println("qResult: " + qResult.state);
 
-            Result result = min_max_ab(root, depth);
+            Result result = min_max_ab(root, depth, SearchType.MINIMAX);
             results.add(result);
+            // System.out.println("Result: " + result.state);
         }
 
         results.sort(Comparator.comparingDouble(result -> result.value));
 
-        System.out.println("\nprinting results list");
+        System.out.println("\nPrinting Results");
         for (Result result : results) {
-            System.out.println(result.state);
-            System.out.println(result.value);
+            System.out.println("State: " + result.state);
+            System.out.println("Value: " + result.value);
         }
 
         int position = 1;
@@ -47,6 +56,15 @@ public class Cawatso4 extends Bot {
         } else {
             bestMove = results.get(position - 1);
         }
+
+        // while (bestMove.state.turn == root.turn) {
+        // position++;
+        // if (maximizingPlayer) {
+        // bestMove = results.get(results.size() - position);
+        // } else {
+        // bestMove = results.get(position - 1);
+        // }
+        // }
 
         try {
             while (bestMove.state.previous != root) {
@@ -68,78 +86,92 @@ public class Cawatso4 extends Bot {
         return bestMove.state;
     }
 
-    private Result min_max_ab(State state, int depth) {
+    private enum SearchType {
+        MINIMAX, QUIESCENT
+    }
+
+    private Result min_max_ab(State state, int depth, SearchType searchType) {
         if (state.player == Player.WHITE) {
-            return max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+            return max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
         } else {
-            return min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+            return min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
         }
     }
 
-    private Result max_ab(State state, int depth, double alpha, double beta) {
+    private Result max_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
         if (depth == 0) {
             return new Result(state, evaluateState(state));
-        }
-
-        if (state.over) {
-            if (state.check) {
-                return new Result(state, Double.NEGATIVE_INFINITY);
-            } else {
-                return new Result(state, Double.POSITIVE_INFINITY);
-            }
         }
 
         Result best = new Result(state, Double.NEGATIVE_INFINITY);
 
-        ArrayList<Result> children = gatherChildren(state);
+        ArrayList<Result> children = new ArrayList<>();
+
+        if (searchType == SearchType.MINIMAX) {
+            children = gatherChildren(state);
+        } else {
+            children = gatherQuiescentChildren(state);
+        }
 
         for (int i = children.size() - 1; i >= 0; i--) {
-            Result result = min_ab(children.get(i).state, depth - 1, alpha, beta);
-            best.value = Math.max(best.value, result.value);
+            Result result = min_ab(children.get(i).state, depth - 1, alpha, beta, searchType);
 
-            if (best.value == result.value) {
-                best.state = result.state;
+            // best.value = Math.max(best.value, result.value);
+
+            // if (best.value == result.value) {
+            //     best.state = result.state;
+            // }
+
+            // alpha = Math.max(alpha, best.value);
+
+            if (result.value > best.value) {
+                best = result;
+            }
+            
+            if (best.value >= beta) {
+                return best;
             }
 
             alpha = Math.max(alpha, best.value);
-            if (beta <= alpha) {
-                break;
-            }
-
         }
         return best;
     }
 
-    private Result min_ab(State state, int depth, double alpha, double beta) {
+    private Result min_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
         if (depth == 0) {
             return new Result(state, evaluateState(state));
         }
 
-        if (state.over) {
-            if (state.check) {
-                return new Result(state, Double.POSITIVE_INFINITY);
-            } else {
-                return new Result(state, Double.NEGATIVE_INFINITY);
-            }
-        }
-
         Result best = new Result(state, Double.POSITIVE_INFINITY);
 
-        ArrayList<Result> children = gatherChildren(state);
+        ArrayList<Result> children = new ArrayList<>();
+
+        if (searchType == SearchType.MINIMAX) {
+            children = gatherChildren(state);
+        } else {
+            children = gatherQuiescentChildren(state);
+        }
 
         for (int i = 0; i < children.size(); i++) {
-            Result result = max_ab(children.get(i).state, depth - 1, alpha, beta);
-            best.value = Math.min(best.value, result.value);
+            Result result = max_ab(children.get(i).state, depth - 1, alpha, beta, searchType);
 
-            if (best.value == result.value) {
-                best.state = result.state;
+            // best.value = Math.min(best.value, result.value);
+
+            // if (best.value == result.value) {
+            //     best.state = result.state;
+            // }
+
+            // beta = Math.min(beta, best.value);
+
+            if (result.value < best.value) {
+                best = result;
+            }
+
+            if (best.value <= alpha) {
+                return best;
             }
 
             beta = Math.min(beta, best.value);
-            if (beta <= alpha) {
-                break;
-            }
-
         }
         return best;
     }
@@ -462,9 +494,9 @@ public class Cawatso4 extends Bot {
                             }
                         }
 
-                        int [][] kingSurroundingSquares = generateQueenMoves();
+                        int[][] kingSurroundingSquares = generateQueenMoves();
                         for (int[] square : kingSurroundingSquares) {
-                            int kingY = state.board.getKing(state.player.other()).file  + square[0];
+                            int kingY = state.board.getKing(state.player.other()).file + square[0];
                             int kingX = state.board.getKing(state.player.other()).rank + square[1];
 
                             if (state.board.pieceAt(kingY, kingX, state.player.other())) {
@@ -504,9 +536,9 @@ public class Cawatso4 extends Bot {
                             }
                         }
 
-                        int [][] kingSurroundingSquares = generateQueenMoves();
+                        int[][] kingSurroundingSquares = generateQueenMoves();
                         for (int[] square : kingSurroundingSquares) {
-                            int kingY = state.board.getKing(state.player.other()).file  + square[0];
+                            int kingY = state.board.getKing(state.player.other()).file + square[0];
                             int kingX = state.board.getKing(state.player.other()).rank + square[1];
 
                             if (state.board.pieceAt(kingY, kingX, state.player.other())) {
@@ -547,9 +579,9 @@ public class Cawatso4 extends Bot {
                                 }
                             }
 
-                            int [][] kingSurroundingSquares = generateQueenMoves();
+                            int[][] kingSurroundingSquares = generateQueenMoves();
                             for (int[] square : kingSurroundingSquares) {
-                                int kingY = state.board.getKing(state.player.other()).file  + square[0];
+                                int kingY = state.board.getKing(state.player.other()).file + square[0];
                                 int kingX = state.board.getKing(state.player.other()).rank + square[1];
 
                                 if (state.board.pieceAt(kingY, kingX, state.player.other())) {
@@ -590,9 +622,9 @@ public class Cawatso4 extends Bot {
                                 }
                             }
 
-                            int [][] kingSurroundingSquares = generateQueenMoves();
+                            int[][] kingSurroundingSquares = generateQueenMoves();
                             for (int[] square : kingSurroundingSquares) {
-                                int kingY = state.board.getKing(state.player.other()).file  + square[0];
+                                int kingY = state.board.getKing(state.player.other()).file + square[0];
                                 int kingX = state.board.getKing(state.player.other()).rank + square[1];
 
                                 if (state.board.pieceAt(kingY, kingX, state.player.other())) {
@@ -633,9 +665,9 @@ public class Cawatso4 extends Bot {
                                 }
                             }
 
-                            int [][] kingSurroundingSquares = generateQueenMoves();
+                            int[][] kingSurroundingSquares = generateQueenMoves();
                             for (int[] square : kingSurroundingSquares) {
-                                int kingY = state.board.getKing(state.player.other()).file  + square[0];
+                                int kingY = state.board.getKing(state.player.other()).file + square[0];
                                 int kingX = state.board.getKing(state.player.other()).rank + square[1];
 
                                 if (state.board.pieceAt(kingY, kingX, state.player.other())) {
@@ -675,9 +707,9 @@ public class Cawatso4 extends Bot {
                             }
                         }
 
-                        int [][] kingSurroundingSquares = generateQueenMoves();
+                        int[][] kingSurroundingSquares = generateQueenMoves();
                         for (int[] square : kingSurroundingSquares) {
-                            int kingY = state.board.getKing(state.player.other()).file  + square[0];
+                            int kingY = state.board.getKing(state.player.other()).file + square[0];
                             int kingX = state.board.getKing(state.player.other()).rank + square[1];
 
                             if (state.board.pieceAt(kingY, kingX, state.player.other())) {
