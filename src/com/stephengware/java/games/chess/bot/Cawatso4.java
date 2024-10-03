@@ -27,7 +27,7 @@ public class Cawatso4 extends Bot {
 
         List<Result> results = new ArrayList<>();
 
-        for (int depth = 1; depth < 3; depth++) {
+        for (int depth = 1; depth < 5; depth++) {
             if (root.searchLimitReached()) {
                 break;
             }
@@ -35,7 +35,6 @@ public class Cawatso4 extends Bot {
             // if (qResult.state.toString() != "") {
             // results.add(qResult);
             // }
-            // System.out.println("qResult: " + qResult.state);
 
             ArrayList<Result> children = gatherChildren(root);
 
@@ -45,16 +44,9 @@ public class Cawatso4 extends Bot {
 
             Result result = min_max_ab(root, depth, SearchType.MINIMAX);
             results.add(result);
-            System.out.println("Result: " + result.state);
         }
 
         results.sort(Comparator.comparingDouble(result -> result.value));
-
-        System.out.println("\nPrinting Results");
-        for (Result result : results) {
-            System.out.println("State: " + result.state);
-            System.out.println("Value: " + result.value);
-        }
 
         int position = 1;
         Result bestMove = results.get(results.size() - position);
@@ -64,15 +56,6 @@ public class Cawatso4 extends Bot {
         } else {
             bestMove = results.get(position - 1);
         }
-
-        // while (bestMove.state.turn == root.turn) {
-        // position++;
-        // if (maximizingPlayer) {
-        // bestMove = results.get(results.size() - position);
-        // } else {
-        // bestMove = results.get(position - 1);
-        // }
-        // }
 
         try {
             while (bestMove.state.previous != root) {
@@ -101,8 +84,6 @@ public class Cawatso4 extends Bot {
     private Result min_max_ab(State state, int depth, SearchType searchType) {
         if (state.player == Player.WHITE) {
             Result result = max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
-            System.out.println("Result min_max_ab: " + result.state);
-            System.out.println("Value min_max_ab: " + result.value);
             return result;
         } else {
             return min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
@@ -110,8 +91,14 @@ public class Cawatso4 extends Bot {
     }
 
     private Result max_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        if (depth == 0 || state.countDescendants() == 1) {
+        if (depth == 0 || state.countDescendants() <= 1) {
             return new Result(state, evaluateState(state));
+        }
+        
+        if (state.over) {
+            if (state.check) {
+                return new Result(state, Double.NEGATIVE_INFINITY);
+            }
         }
 
         ArrayList<Result> children = new ArrayList<>();
@@ -121,28 +108,16 @@ public class Cawatso4 extends Bot {
         } else {
             children = gatherQuiescentChildren(state);
         }
-
-        System.out.println("\n\nPrinting descendant number: " + state.countDescendants());
-        System.out.println("Children size: " + children.size() + "\n\n");
-        Result best = new Result(children.get(0).state, children.get(0).value);
-        System.out.println("Best at top of max_ab: " + best.state);
-
-        for (Result child : children) {
-            // System.out.println("Child in max_ab from children: " + child.state);
+        
+        if (children.size() == 0) {
+            return new Result(state, evaluateState(state));
         }
 
+        Result best = new Result(children.get(0).state, children.get(0).value);
+
+
         for (int i = children.size() - 1; i >= 0; i--) {
-            // System.out.println("Child using .get: " + children.get(i).state);
             Result result = min_ab(children.get(i).state, depth - 1, alpha, beta, searchType);
-            System.out.println("Result in max_ab: " + result.state);
-
-            // best.value = Math.max(best.value, result.value);
-
-            // if (best.value == result.value) {
-            // best.state = result.state;
-            // }
-
-            // alpha = Math.max(alpha, best.value);
 
             if (result.value > best.value) {
                 best = result;
@@ -154,16 +129,19 @@ public class Cawatso4 extends Bot {
 
             alpha = Math.max(alpha, best.value);
         }
-        System.out.println("Best at bottom of max_ab: " + best.state);
         return best;
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        if (depth == 0) {
+        if (depth == 0 || state.countDescendants() <= 1) {
             return new Result(state, evaluateState(state));
         }
-
-        Result best = new Result(state, evaluateState(state));
+        
+        if (state.over) {
+            if (state.check) {
+                return new Result(state, Double.POSITIVE_INFINITY);
+            }
+        }
 
         ArrayList<Result> children = new ArrayList<>();
 
@@ -172,18 +150,15 @@ public class Cawatso4 extends Bot {
         } else {
             children = gatherQuiescentChildren(state);
         }
+        
+        if (children.size() == 0) {
+            return new Result(state, evaluateState(state));
+        }
+        
+        Result best = new Result(children.get(0).state, children.get(0).value);
 
         for (int i = 0; i < children.size(); i++) {
             Result result = max_ab(children.get(i).state, depth - 1, alpha, beta, searchType);
-            System.out.println("Result in min_ab: " + result.state);
-
-            // best.value = Math.min(best.value, result.value);
-
-            // if (best.value == result.value) {
-            // best.state = result.state;
-            // }
-
-            // beta = Math.min(beta, best.value);
 
             if (result.value < best.value) {
                 best = result;
@@ -206,6 +181,14 @@ public class Cawatso4 extends Bot {
             value += getPieceSquareValue(state, piece);
             value += mobilityValue(state, piece);
             value += kingSafetyValue(state, piece);
+        }
+        
+        if (state.check) {
+            if (state.player == Player.WHITE) {
+                value -= 1000;
+            } else {
+                value += 1000;
+            }
         }
 
         return value;
@@ -492,9 +475,6 @@ public class Cawatso4 extends Bot {
             }
         }
 
-        // for (State child : children) {
-        // System.out.println("Child: " + child);
-        // }
 
         ArrayList<Result> sortedChildren = new ArrayList<>();
 
