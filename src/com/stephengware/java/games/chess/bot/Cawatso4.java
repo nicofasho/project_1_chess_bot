@@ -101,7 +101,6 @@ public class Cawatso4 extends Bot {
     }
 
     private Result max_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        System.out.println("depth in max_ab: " + depth);
         if (depth == 0 || state.countDescendants() <= 1) {
             return new Result(state, evaluateState(state));
         }
@@ -144,7 +143,6 @@ public class Cawatso4 extends Bot {
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        System.out.println("depth in min_ab: " + depth);
         if (depth == 0 || state.countDescendants() <= 1) {
             return new Result(state, evaluateState(state));
         }
@@ -190,7 +188,7 @@ public class Cawatso4 extends Bot {
         double value = 0;
 
         for (Piece piece : state.board) {
-            value += rawMaterialValue(piece);
+            value += rawMaterialValue(piece, state);
             value += getPieceSquareValue(state, piece);
             value += mobilityValue(state, piece);
             value += kingSafetyValue(state);
@@ -198,9 +196,9 @@ public class Cawatso4 extends Bot {
 
         if (state.check) {
             if (state.player == Player.WHITE) {
-                value -= 1000;
+                value -= 100;
             } else {
-                value += 1000;
+                value += 100;
             }
         }
 
@@ -370,28 +368,120 @@ public class Cawatso4 extends Bot {
         return value;
     }
 
-    private double rawMaterialValue(Piece piece) {
+    private double rawMaterialValue(Piece piece, State state) {
         double value = 0;
 
         boolean maximizingPlayer = piece.player == Player.WHITE;
 
+        // if (piece.getClass() == Pawn.class) {
+        // value += 100;
+        // }
+        // if (piece.getClass() == Knight.class) {
+        // value += 320;
+        // }
+        // if (piece.getClass() == Bishop.class) {
+        // value += 330;
+        // }
+        // if (piece.getClass() == Rook.class) {
+        // value += 500;
+        // }
+        // if (piece.getClass() == Queen.class) {
+        // value += 900;
+        // }
+        // if (piece.getClass() == King.class) {
+        // value += 20000;
+        // }
+
         if (piece.getClass() == Pawn.class) {
-            value += 100;
-        }
-        if (piece.getClass() == Knight.class) {
-            value += 320;
-        }
-        if (piece.getClass() == Bishop.class) {
-            value += 330;
-        }
-        if (piece.getClass() == Rook.class) {
-            value += 500;
-        }
-        if (piece.getClass() == Queen.class) {
-            value += 900;
-        }
-        if (piece.getClass() == King.class) {
-            value += 20000;
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    if (piece.rank == 3 || piece.rank == 4) {
+                        value += 100;
+                    } else if (piece.rank == 2 || piece.rank == 5) {
+                        value += 95;
+                    } else if (piece.rank == 1 || piece.rank == 6) {
+                        value += 85;
+                    } else if (piece.rank == 0 || piece.rank == 7) {
+                        value += 70;
+                    }
+                    break;
+                case THRESHOLD:
+                    value += 90;
+                    break;
+                case ENDGAME:
+                    value += 100;
+                    break;
+            }
+        } else if (piece.getClass() == Knight.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 320;
+                    break;
+                case THRESHOLD:
+                    value += 320;
+                    break;
+                case ENDGAME:
+                    value += 320;
+                    break;
+            }
+        } else if (piece.getClass() == Bishop.class) {
+            boolean pairedBishops = countBishops(piece, state);
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 330;
+                    if (pairedBishops) {
+                        value += 15;
+                    }
+                    break;
+                case THRESHOLD:
+                    value += 340;
+                    if (pairedBishops) {
+                        value += 20;
+                    }
+                    break;
+                case ENDGAME:
+                    value += 330;
+                    if (pairedBishops) {
+                        value += 25;
+                    }
+                    break;
+            }
+        } else if (piece.getClass() == Rook.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 460;
+                    break;
+                case THRESHOLD:
+                    value += 485;
+                    break;
+                case ENDGAME:
+                    value += 515;
+                    break;
+            }
+        } else if (piece.getClass() == Queen.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 900;
+                    break;
+                case THRESHOLD:
+                    value += 910;
+                    break;
+                case ENDGAME:
+                    value += 900;
+                    break;
+            }
+        } else if (piece.getClass() == King.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 20000;
+                    break;
+                case THRESHOLD:
+                    value += 20000;
+                    break;
+                case ENDGAME:
+                    value += 20000;
+                    break;
+            }
         }
 
         if (!maximizingPlayer) {
@@ -399,6 +489,18 @@ public class Cawatso4 extends Bot {
         }
 
         return value;
+    }
+
+    private boolean countBishops(Piece piece, State state) {
+        int count = 0;
+        for (Piece p : state.board) {
+            if (p.getClass() == Bishop.class) {
+                if (p.player == piece.player) {
+                    count++;
+                }
+            }
+        }
+        return count == 2;
     }
 
     private ArrayList<Result> gatherChildren(State state) {
@@ -773,7 +875,7 @@ public class Cawatso4 extends Bot {
         }
         if (piece.getClass() == King.class) {
             GamePhase gamePhase = determineGamePhase(state);
-            if (gamePhase == GamePhase.MIDDLE_GAME) {
+            if (gamePhase == GamePhase.MIDDLEGAME) {
                 value += maximizingPlayer ? whiteKingMiddleGamePieceSquareTable[piece.file][piece.rank]
                         : blackKingMiddleGamePieceSquareTable[piece.file][piece.rank];
             } else {
@@ -803,7 +905,7 @@ public class Cawatso4 extends Bot {
     }
 
     private enum GamePhase {
-        MIDDLE_GAME, END_GAME
+        MIDDLEGAME, THRESHOLD, ENDGAME
     }
 
     private GamePhase determineGamePhase(State state) {
@@ -831,10 +933,15 @@ public class Cawatso4 extends Bot {
         boolean whiteEndGame = (whiteQueenCount == 0) || (whiteQueenCount == 1 && whiteOtherPiecesCount <= 1);
         boolean blackEndGame = (blackQueenCount == 0) || (blackQueenCount == 1 && blackOtherPiecesCount <= 1);
 
+        boolean whiteThreshold = (whiteQueenCount == 1 && whiteOtherPiecesCount > 1 && whiteOtherPiecesCount <= 3);
+        boolean blackThreshold = (blackQueenCount == 1 && blackOtherPiecesCount > 1 && blackOtherPiecesCount <= 3);
+
         if (whiteEndGame && blackEndGame) {
-            return GamePhase.END_GAME;
+            return GamePhase.ENDGAME;
+        } else if (whiteThreshold || blackThreshold) {
+            return GamePhase.THRESHOLD;
         } else {
-            return GamePhase.MIDDLE_GAME;
+            return GamePhase.MIDDLEGAME;
         }
     }
 
