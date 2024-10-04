@@ -3,10 +3,11 @@ package com.stephengware.java.games.chess.bot;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
 import com.stephengware.java.games.chess.state.*;
+
+import java.util.Iterator;
 
 public class Cawatso3 extends Bot {
 
@@ -14,386 +15,891 @@ public class Cawatso3 extends Bot {
         super("Cawatso3 Bot");
     }
 
-    private enum SearchType {
-        QUIESCENCE, MINMAX
-    }
-
     private HashMap<Long, State> visitedStates = new HashMap<>();
-
-    boolean isWinningState(State state) {
-        if (state.over) {
-            if (!state.check) {
-                return true;
-            }
-        }
-        return false;
-    }
+    private Player player;
 
     @Override
     protected State chooseMove(State root) {
 
-        if (isWinningState(root)) {
-            return root;
-        }
+        visitedStates.clear();
 
-        int positionCounter = 1;
+        player = root.player;
 
         boolean maximizingPlayer = root.player == Player.WHITE;
 
-        Result bestMove = new Result(root,
-                maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
-        List<Result> bestMoves = new ArrayList<>();
+        List<Result> results = new ArrayList<>();
 
-        for (int depth = 0; depth < 3; depth++) {
-
-            if (bestMoves.size() > 0) {
-                positionCounter = 1;
-                bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
-            }
-
-            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.QUIESCENCE,
-                    bestMoves.size() > 0 ? bestMove.value
-                            : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
-            bestMoves.add(bestMove);
-
-            bestMove = min_max_ab(root, maximizingPlayer, depth, SearchType.MINMAX,
-                    bestMoves.size() > 0 ? bestMove.value
-                            : maximizingPlayer ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
-            bestMoves.add(bestMove);
-
+        for (int depth = 1; depth < 5; depth++) {
             if (root.searchLimitReached()) {
                 break;
             }
-        }
-
-        bestMoves.sort(Comparator.comparingDouble(result -> result.value));
-
-        positionCounter = 1;
-        while (bestMove.state == root) {
-            System.out.println("bestMove was root");
-            positionCounter++;
-            bestMove = bestMoves.get(maximizingPlayer ? bestMoves.size() - positionCounter : positionCounter - 1);
-        }
-
-        while (bestMove.state.previous != root) {
-            System.out.println("Looping back to root");
-            if (bestMove.state == root) {
-                break;
+            Result qResult = min_max_ab(root, depth, SearchType.QUIESCENT);
+            if (qResult.state.toString() != "") {
+                results.add(qResult);
             }
 
-            bestMove.state = bestMove.state.previous;
+            Result result = min_max_ab(root, depth, SearchType.MINIMAX);
+            results.add(result);
         }
 
-        System.out.println("bestMove value: " + bestMove.value);
-        System.out.println("Best move: " + bestMove.state);
+        results.sort(Comparator.comparingDouble(r -> r.value));
+
+        int position = 1;
+        Result bestMove = results.get(results.size() - position);
+
+        if (maximizingPlayer) {
+            bestMove = results.get(results.size() - position);
+        } else {
+            bestMove = results.get(position - 1);
+        }
+
+        while (bestMove.state == root) {
+            if (position > results.size()) {
+                position = 1;
+            }
+
+            if (maximizingPlayer) {
+                bestMove = results.get(results.size() - position);
+            } else {
+                bestMove = results.get(position - 1);
+            }
+            position++;
+        }
+
+        try {
+            while (bestMove.state.previous != root) {
+                bestMove.state = bestMove.state.previous;
+            }
+        } catch (NullPointerException e) {
+            position++;
+            if (maximizingPlayer) {
+                bestMove = results.get(results.size() - position);
+            } else {
+                bestMove = results.get(position - 1);
+            }
+            while (bestMove.state.previous != root) {
+                bestMove.state = bestMove.state.previous;
+            }
+        }
+
+        System.out.println("bestMove.value: " + bestMove.value);
 
         return bestMove.state;
     }
 
-    private ArrayList<State> gatherQuiescentChildren(State state, Piece piece) {
-        ArrayList<State> children = new ArrayList<>();
-        boolean maximizingPlayer = piece.player == Player.WHITE;
-
-        if (piece.getClass() == Pawn.class) {
-            int[][] pawnMoves = maximizingPlayer ? new int[][] { { 1, 0 }, { 1, 1 }, { 1, -1 }, { 2, 0 } }
-                    : new int[][] { { -1, 0 }, { -1, 1 }, { -1, -1 }, { -2, 0 } };
-            for (int[] move : pawnMoves) {
-                int newFile = piece.file + move[0];
-                int newRank = piece.rank + move[1];
-                if (state.board.pieceAt(newFile, newRank)) {
-                    if (isMoveLegal(state, piece, new Pawn(piece.player, newFile, newRank))) {
-
-                        State newMove = state.next(piece, new Pawn(piece.player, newFile, newRank));
-                        long hash = newMove.hashCode();
-
-                        if (!visitedStates.containsKey(hash)) {
-                            visitedStates.put(hash, newMove);
-                            children.add(newMove);
-                        }
-
-                    }
-                }
-
-            }
-        } else if (piece.getClass() == Knight.class) {
-            int[][] knightMoves = {
-                    { 2, 1 }, { 2, -1 }, { -2, 1 }, { -2, -1 },
-                    { 1, 2 }, { 1, -2 }, { -1, 2 }, { -1, -2 }
-            };
-            for (int[] move : knightMoves) {
-                int newFile = piece.file + move[0];
-                int newRank = piece.rank + move[1];
-                if (state.board.pieceAt(newFile, newRank)) {
-                    if (isMoveLegal(state, piece, new Knight(piece.player, newFile, newRank))) {
-
-                        State newMove = state.next(piece, new Knight(piece.player, newFile, newRank));
-                        long hash = newMove.hashCode();
-
-                        if (!visitedStates.containsKey(hash)) {
-                            visitedStates.put(hash, newMove);
-                            children.add(newMove);
-                        }
-
-                    }
-                }
-            }
-        } else if (piece.getClass() == Bishop.class) {
-            int[][] bishopMoves = {
-                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
-            };
-            for (int[] move : bishopMoves) {
-                for (int i = 1; i < 8; i++) {
-                    int newFile = piece.file + i * move[0];
-                    int newRank = piece.rank + i * move[1];
-                    if (state.board.pieceAt(newFile, newRank)) {
-                        if (isMoveLegal(state, piece, new Bishop(piece.player, newFile, newRank))) {
-
-                            State newMove = state.next(piece, new Bishop(piece.player, newFile, newRank));
-                            long hash = newMove.hashCode();
-
-                            if (!visitedStates.containsKey(hash)) {
-                                visitedStates.put(hash, newMove);
-                                children.add(newMove);
-                            }
-                        }
-
-                    }
-                }
-            }
-        } else if (piece.getClass() == Rook.class) {
-            int[][] rookMoves = {
-                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-            };
-            for (int[] move : rookMoves) {
-                for (int i = 1; i < 8; i++) {
-                    int newFile = piece.file + i * move[0];
-                    int newRank = piece.rank + i * move[1];
-                    if (state.board.pieceAt(newFile, newRank)) {
-                        if (isMoveLegal(state, piece, new Rook(piece.player, newFile, newRank))) {
-
-                            State newMove = state.next(piece, new Rook(piece.player, newFile, newRank));
-                            long hash = newMove.hashCode();
-
-                            if (!visitedStates.containsKey(hash)) {
-                                visitedStates.put(hash, newMove);
-                                children.add(newMove);
-                            }
-
-                        }
-                    }
-                }
-            }
-        } else if (piece.getClass() == Queen.class) {
-            int[][] queenMoves = {
-                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
-                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-            };
-            for (int[] move : queenMoves) {
-                for (int i = 1; i < 8; i++) {
-                    int newFile = piece.file + i * move[0];
-                    int newRank = piece.rank + i * move[1];
-                    if (state.board.pieceAt(newFile, newRank)) {
-                        if (isMoveLegal(state, piece, new Queen(piece.player, newFile, newRank))) {
-
-                            State newMove = state.next(piece, new Queen(piece.player, newFile, newRank));
-                            long hash = newMove.hashCode();
-
-                            if (!visitedStates.containsKey(hash)) {
-                                visitedStates.put(hash, newMove);
-                                children.add(newMove);
-                            }
-
-                        }
-                    }
-                }
-            }
-        } else if (piece.getClass() == King.class) {
-            int[][] kingMoves = {
-                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
-                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-            };
-            for (int[] move : kingMoves) {
-                int newFile = piece.file + move[0];
-                int newRank = piece.rank + move[1];
-                if (state.board.pieceAt(newFile, newRank)) {
-                    if (isMoveLegal(state, piece, new King(piece.player, newFile, newRank))) {
-
-                        State newMove = state.next(piece, new King(piece.player, newFile, newRank));
-                        long hash = newMove.hashCode();
-
-                        if (!visitedStates.containsKey(hash)) {
-                            visitedStates.put(hash, newMove);
-                            children.add(newMove);
-                        }
-
-                    }
-                }
-            }
-        }
-
-        return children;
+    private enum SearchType {
+        MINIMAX, QUIESCENT
     }
 
-    private Result min_max_ab(State state, boolean maximizingPlayer, int depth, SearchType searchType,
-            double bestValue) {
-        Result result = maximizingPlayer
-                ? max_ab(state, depth, bestValue, Double.POSITIVE_INFINITY, searchType)
-                : min_ab(state, depth, Double.NEGATIVE_INFINITY, bestValue, searchType);
-
-        return result;
-    }
-
-    private ArrayList<State> gatherChildren(State state) {
-        ArrayList<State> children = new ArrayList<>();
-
-        Iterator<State> iterator = state.next().iterator();
-        int counter = 0;
-
-        while (!state.searchLimitReached() && iterator.hasNext() && counter < 20) {
-            State move = iterator.next();
-            long hash = move.hashCode();
-
-            if (!visitedStates.containsKey(hash)) {
-                visitedStates.put(hash, move);
-                children.add(move);
-                counter++;
-            }
-
+    private Result min_max_ab(State state, int depth, SearchType searchType) {
+        visitedStates.clear();
+        if (state.player == Player.WHITE) {
+            return max_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
+        } else {
+            return min_ab(state, depth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, searchType);
         }
-
-        return children;
     }
 
     private Result max_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        if (depth == 0 || state.countDescendants() == 0) {
-            return materialValue(state);
+        if (depth == 0 || state.countDescendants() <= 1) {
+            return new Result(state, evaluateState(state));
         }
 
-        if (isWinningState(state)) {
-            return new Result(state, Double.POSITIVE_INFINITY);
+        if (state.over) {
+            if (state.check) {
+                return new Result(state, Double.NEGATIVE_INFINITY);
+            }
         }
 
-        if (state.over && state.check) {
-            return new Result(state, Double.NEGATIVE_INFINITY);
-        }
+        ArrayList<Result> children = new ArrayList<>();
 
-        Result best = new Result(state, Double.NEGATIVE_INFINITY);
-
-        ArrayList<State> children = new ArrayList<>();
-
-        if (searchType == SearchType.MINMAX) {
+        if (searchType == SearchType.MINIMAX) {
             children = gatherChildren(state);
         } else {
-            for (Piece piece : state.board) {
-                children = gatherQuiescentChildren(state, piece);
-            }
+            children = gatherQuiescentChildren(state);
         }
 
         if (children.size() == 0) {
-            return materialValue(state);
+            return new Result(state, evaluateState(state));
         }
 
-        for (State child : children) {
-            Result value = min_ab(child, depth - 1, alpha, beta, searchType);
+        Result best = new Result(children.get(0).state, children.get(0).value);
 
-            if (value.value > best.value) {
-                best = value;
+        depth--;
+        for (int i = children.size() - 1; i >= 0; i--) {
+            Result result = min_ab(children.get(i).state, depth, alpha, beta, searchType);
+
+            if (result.value > best.value) {
+                best = result;
             }
-            alpha = Math.max(alpha, best.value);
 
-            if (beta <= alpha)
-                break;
+            if (best.value >= beta) {
+                return best;
+            }
+
+            alpha = Math.max(alpha, best.value);
         }
         return best;
     }
 
     private Result min_ab(State state, int depth, double alpha, double beta, SearchType searchType) {
-        if (depth == 0 || state.countDescendants() == 0 ) {
-            return materialValue(state);
+        if (depth == 0 || state.countDescendants() <= 1) {
+            return new Result(state, evaluateState(state));
         }
 
-        if (isWinningState(state)) {
-            return new Result(state, Double.NEGATIVE_INFINITY);
+        if (state.over) {
+            if (state.check) {
+                return new Result(state, Double.POSITIVE_INFINITY);
+            }
         }
 
-        if (state.over && state.check) {
-            return new Result(state, Double.POSITIVE_INFINITY);
-        }
+        ArrayList<Result> children = new ArrayList<>();
 
-        Result best = new Result(state, Double.POSITIVE_INFINITY);
-
-        ArrayList<State> children = new ArrayList<>();
-
-        if (searchType == SearchType.MINMAX) {
+        if (searchType == SearchType.MINIMAX) {
             children = gatherChildren(state);
         } else {
-            for (Piece piece : state.board) {
-                children = gatherQuiescentChildren(state, piece);
-            }
+            children = gatherQuiescentChildren(state);
         }
+
         if (children.size() == 0) {
-            return materialValue(state);
+            return new Result(state, evaluateState(state));
         }
 
-        for (State child : children) {
-            Result value = max_ab(child, depth - 1, alpha, beta, searchType);
+        Result best = new Result(children.get(0).state, children.get(0).value);
 
-            if (best.value > value.value) {
-                best = value;
+        depth--;
+        for (int i = 0; i < children.size(); i++) {
+            Result result = max_ab(children.get(i).state, depth, alpha, beta, searchType);
+
+            if (result.value < best.value) {
+                best = result;
             }
+
+            if (best.value <= alpha) {
+                return best;
+            }
+
             beta = Math.min(beta, best.value);
-
-            if (beta <= alpha)
-                break;
-
         }
-
         return best;
     }
 
-    private Result materialValue(State state) {
+    private double evaluateState(State state) {
         double value = 0;
-
-        value += state.player == Player.WHITE ? evaluateKingSafety(state) : -evaluateKingSafety(state);
 
         for (Piece piece : state.board) {
-            value += rawMaterialValue(piece);
+            value += rawMaterialValue(piece, state);
             value += getPieceSquareValue(state, piece);
-            value += mobilityScore(state, piece);
+            value += mobilityValue(state, piece);
+            value += pawnStructureValue(state, piece);
+            // value += kingSafetyValue(state);
         }
 
-        return new Result(state, value);
-    }
-
-    private double rawMaterialValue(Piece piece) {
-        double value = 0;
-
-        boolean maximizingPlayer = piece.player == Player.WHITE;
-
-        if (piece.getClass() == Pawn.class) {
-            value += maximizingPlayer ? 100 : -100;
-        }
-        if (piece.getClass() == Knight.class) {
-            value += maximizingPlayer ? 320 : -320;
-        }
-        if (piece.getClass() == Bishop.class) {
-            value += maximizingPlayer ? 330 : -330;
-        }
-        if (piece.getClass() == Rook.class) {
-            value += maximizingPlayer ? 500 : -500;
-        }
-        if (piece.getClass() == Queen.class) {
-            value += maximizingPlayer ? 900 : -900;
-        }
-        if (piece.getClass() == King.class) {
-            value += maximizingPlayer ? 20000 : -20000;
+        if (state.check) {
+            if (state.player == Player.WHITE) {
+                value -= 100;
+            } else {
+                value += 100;
+            }
         }
 
         return value;
     }
 
+    private double pawnStructureValue(State state, Piece piece) {
+        double value = 0;
+
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            int file = piece.file;
+            int rank = piece.rank;
+
+            // Doubled Pawns
+            for (Piece otherPiece : state.board) {
+                if (otherPiece != piece && otherPiece.getClass() == Pawn.class && otherPiece.file == file) {
+                    value -= 50;
+                }
+            }
+
+            // Isolated Pawns
+            boolean isolated = true;
+            for (Piece otherPiece : state.board) {
+                if (otherPiece != piece && otherPiece.getClass() == Pawn.class
+                        && (otherPiece.file == file - 1 || otherPiece.file == file + 1)) {
+                    isolated = false;
+                    break;
+                }
+            }
+            if (isolated) {
+                value -= 50;
+            }
+
+            // Backward Pawns
+            boolean backward = false;
+            int leftFlank = rank - 1;
+            int rightFlank = rank + 1;
+            if (maximizingPlayer) {
+                if (state.board.pieceAt(file - 1, leftFlank, Player.WHITE, Pawn.class)
+                        || state.board.pieceAt(file - 1, rightFlank, Player.WHITE, Pawn.class)) {
+                    backward = true;
+                }
+            } else {
+                if (state.board.pieceAt(file + 1, leftFlank, Player.BLACK, Pawn.class)
+                        || state.board.pieceAt(file + 1, rightFlank, Player.BLACK, Pawn.class)) {
+                    backward = true;
+                }
+            }
+
+            if (backward) {
+                value -= 50;
+            }
+
+            // Passed Pawns
+            boolean passed = true;
+            if (maximizingPlayer) {
+                for (int f = file + 1; f < 8; f++) {
+                    if (state.board.pieceAt(f, rank, Player.BLACK, Pawn.class)) {
+                        passed = false;
+                        break;
+                    }
+                }
+            } else {
+                for (int f = file - 1; f >= 0; f--) {
+                    if (state.board.pieceAt(f, rank, Player.WHITE, Pawn.class)) {
+                        passed = false;
+                        break;
+                    }
+                }
+            }
+            if (passed) {
+                value += 100;
+            }
+
+        }
+
+        if (!maximizingPlayer) {
+            value *= -1;
+        }
+
+        return value;
+    }
+
+    private double mobilityValue(State state, Piece piece) {
+        double value = 0;
+
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        Iterator<State> potentialMoves = state.next(piece).iterator();
+        while (potentialMoves.hasNext()) {
+            value += 10;
+            potentialMoves.next();
+        }
+
+        if (!maximizingPlayer) {
+            value *= -1;
+        }
+
+        return value;
+    }
+
+    private class Position {
+        int file;
+        int rank;
+
+        public Position(int file, int rank) {
+            this.file = file;
+            this.rank = rank;
+        }
+    }
+
+    private List<Position> getSafetyZone(Position king) {
+        List<Position> safetyZone = new ArrayList<>();
+        int[][] surroundingSquares = generateQueenMoves();
+
+        for (int[] square : surroundingSquares) {
+            int y = king.file + square[0];
+            int x = king.rank + square[1];
+
+            safetyZone.add(new Position(y, x));
+        }
+
+        return safetyZone;
+    }
+
+    private double kingSafetyValue(State state) {
+        double value = 0;
+
+        King whiteKing = state.board.getKing(Player.WHITE);
+        King blackKing = state.board.getKing(Player.BLACK);
+
+        List<Position> whiteSafetyZone = getSafetyZone(new Position(whiteKing.file, whiteKing.rank));
+        List<Position> blackSafetyZone = getSafetyZone(new Position(blackKing.file, blackKing.rank));
+
+        double whiteSafetyValue = 0;
+        double blackSafetyValue = 0;
+
+        for (Position position : whiteSafetyZone) {
+            if (state.board.pieceAt(position.file, position.rank, Player.WHITE, Pawn.class)) {
+                whiteSafetyValue += 50;
+            } else if (state.board.pieceAt(position.file, position.rank, Player.WHITE)) {
+                whiteSafetyValue += 10;
+            } else if (state.board.pieceAt(position.file, position.rank, Player.BLACK)) {
+                whiteSafetyValue -= 50;
+            }
+        }
+
+        for (Position position : blackSafetyZone) {
+            if (state.board.pieceAt(position.file, position.rank, Player.BLACK, Pawn.class)) {
+                blackSafetyValue += 50;
+            } else if (state.board.pieceAt(position.file, position.rank, Player.BLACK)) {
+                blackSafetyValue += 10;
+            } else if (state.board.pieceAt(position.file, position.rank, Player.WHITE)) {
+                blackSafetyValue -= 50;
+            }
+        }
+
+        value += whiteSafetyValue;
+        value -= blackSafetyValue;
+
+        return value;
+    }
+
+    private double rawMaterialValue(Piece piece, State state) {
+        double value = 0;
+
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    if (piece.rank == 3 || piece.rank == 4) {
+                        value += 100;
+                    } else if (piece.rank == 2 || piece.rank == 5) {
+                        value += 95;
+                    } else if (piece.rank == 1 || piece.rank == 6) {
+                        value += 85;
+                    } else if (piece.rank == 0 || piece.rank == 7) {
+                        value += 70;
+                    }
+                    break;
+                case THRESHOLD:
+                    value += 90;
+                    break;
+                case ENDGAME:
+                    value += 100;
+                    break;
+            }
+        } else if (piece.getClass() == Knight.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 320;
+                    break;
+                case THRESHOLD:
+                    value += 320;
+                    break;
+                case ENDGAME:
+                    value += 320;
+                    break;
+            }
+        } else if (piece.getClass() == Bishop.class) {
+            boolean pairedBishops = countBishops(piece, state);
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 330;
+                    if (pairedBishops) {
+                        value += 15;
+                    }
+                    break;
+                case THRESHOLD:
+                    value += 340;
+                    if (pairedBishops) {
+                        value += 20;
+                    }
+                    break;
+                case ENDGAME:
+                    value += 330;
+                    if (pairedBishops) {
+                        value += 25;
+                    }
+                    break;
+            }
+        } else if (piece.getClass() == Rook.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 460;
+                    break;
+                case THRESHOLD:
+                    value += 485;
+                    break;
+                case ENDGAME:
+                    value += 515;
+                    break;
+            }
+        } else if (piece.getClass() == Queen.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 900;
+                    break;
+                case THRESHOLD:
+                    value += 910;
+                    break;
+                case ENDGAME:
+                    value += 900;
+                    break;
+            }
+        } else if (piece.getClass() == King.class) {
+            switch (determineGamePhase(state)) {
+                case MIDDLEGAME:
+                    value += 20000;
+                    break;
+                case THRESHOLD:
+                    value += 20000;
+                    break;
+                case ENDGAME:
+                    value += 20000;
+                    break;
+            }
+        }
+
+        if (!maximizingPlayer) {
+            value *= -1;
+        }
+
+        return value;
+    }
+
+    private boolean countBishops(Piece piece, State state) {
+        int count = 0;
+        for (Piece p : state.board) {
+            if (p.getClass() == Bishop.class) {
+                if (p.player == piece.player) {
+                    count++;
+                }
+            }
+        }
+        return count == 2;
+    }
+
+    private ArrayList<Result> gatherChildren(State state) {
+
+        ArrayList<State> children = new ArrayList<>();
+
+        Iterator<State> it = state.next().iterator();
+
+        while (it.hasNext() && !state.searchLimitReached()) {
+            State newState = it.next();
+            double value = evaluateState(newState);
+            long key = (long) value;
+
+            if (!visitedStates.containsKey(key)) {
+                children.add(newState);
+                visitedStates.put(key, newState);
+            }
+        }
+
+        ArrayList<Result> sortedChildren = new ArrayList<>();
+
+        for (State child : children) {
+            sortedChildren.add(new Result(child, evaluateState(child)));
+        }
+
+        sortedChildren.sort(Comparator.comparingDouble(result -> result.value));
+
+        return sortedChildren;
+    }
+
+    private ArrayList<Result> gatherQuiescentChildren(State state) {
+        ArrayList<State> children = new ArrayList<>();
+
+        // for (Piece piece : state.board) {
+        // if (piece.player == state.player) {
+        // if (piece.getClass() == Pawn.class) {
+        // int[][] pawnMoves = generatePawnMoves(piece);
+        // for (int[] move : pawnMoves) {
+        // int y = piece.file + move[0];
+        // int x = piece.rank + move[1];
+
+        // if (state.board.pieceAt(y, x, state.player.other())) {
+        // Pawn newPawn = new Pawn(piece.player, y, x);
+        // if (isMoveLegal(state, piece, newPawn)) {
+        // State newMove = state.next(piece, newPawn);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+
+        // }
+        // }
+
+        // int[][] kingSurroundingSquares = generateQueenMoves();
+        // for (int[] square : kingSurroundingSquares) {
+        // int kingY = state.board.getKing(state.player.other()).file + square[0];
+        // int kingX = state.board.getKing(state.player.other()).rank + square[1];
+
+        // if (state.board.pieceAt(kingY, kingX, state.player.other())) {
+        // Pawn newPawn = new Pawn(piece.player, kingY, kingX);
+        // if (isMoveLegal(state, piece, newPawn)) {
+        // State newMove = state.next(piece, newPawn);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+        // }
+
+        // }
+        // }
+
+        // if (piece.getClass() == Knight.class) {
+        // int[][] knightMoves = generateKnightMoves();
+
+        // for (int[] move : knightMoves) {
+        // int y = piece.file + move[0];
+        // int x = piece.rank + move[1];
+
+        // if (state.board.pieceAt(y, x, state.player.other())) {
+        // Knight newKnight = new Knight(piece.player, y, x);
+        // if (isMoveLegal(state, piece, newKnight)) {
+        // State newMove = state.next(piece, newKnight);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+
+        // int[][] kingSurroundingSquares = generateQueenMoves();
+        // for (int[] square : kingSurroundingSquares) {
+        // int kingY = state.board.getKing(state.player.other()).file + square[0];
+        // int kingX = state.board.getKing(state.player.other()).rank + square[1];
+
+        // if (state.board.pieceAt(kingY, kingX, state.player.other())) {
+        // Knight newKnight = new Knight(piece.player, kingY, kingX);
+        // if (isMoveLegal(state, piece, newKnight)) {
+        // State newMove = state.next(piece, newKnight);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+        // }
+
+        // }
+        // }
+
+        // if (piece.getClass() == Bishop.class) {
+        // int[][] bishopMoves = generateBishopMoves();
+
+        // for (int i = 1; i < 8; i++) {
+        // for (int[] move : bishopMoves) {
+        // int y = piece.file + move[0] * i;
+        // int x = piece.rank + move[1] * i;
+
+        // if (state.board.pieceAt(y, x, state.player.other())) {
+        // Bishop newBishop = new Bishop(piece.player, y, x);
+        // if (isMoveLegal(state, piece, newBishop)) {
+        // State newMove = state.next(piece, newBishop);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+
+        // int[][] kingSurroundingSquares = generateQueenMoves();
+        // for (int[] square : kingSurroundingSquares) {
+        // int kingY = state.board.getKing(state.player.other()).file + square[0];
+        // int kingX = state.board.getKing(state.player.other()).rank + square[1];
+
+        // if (state.board.pieceAt(kingY, kingX, state.player.other())) {
+        // Bishop newBishop = new Bishop(piece.player, kingY, kingX);
+        // if (isMoveLegal(state, piece, newBishop)) {
+        // State newMove = state.next(piece, newBishop);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+
+        // if (piece.getClass() == Rook.class) {
+        // int[][] rookMoves = generateRookMoves();
+
+        // for (int i = 1; i < 8; i++) {
+        // for (int[] move : rookMoves) {
+        // int y = piece.file + move[0] * i;
+        // int x = piece.rank + move[1] * i;
+
+        // if (state.board.pieceAt(y, x, state.player.other())) {
+        // Rook newRook = new Rook(piece.player, y, x);
+        // if (isMoveLegal(state, piece, newRook)) {
+        // State newMove = state.next(piece, newRook);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+
+        // int[][] kingSurroundingSquares = generateQueenMoves();
+        // for (int[] square : kingSurroundingSquares) {
+        // int kingY = state.board.getKing(state.player.other()).file + square[0];
+        // int kingX = state.board.getKing(state.player.other()).rank + square[1];
+
+        // if (state.board.pieceAt(kingY, kingX, state.player.other())) {
+        // Rook newRook = new Rook(piece.player, kingY, kingX);
+        // if (isMoveLegal(state, piece, newRook)) {
+        // State newMove = state.next(piece, newRook);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+
+        // if (piece.getClass() == Queen.class) {
+        // int[][] queenMoves = generateQueenMoves();
+
+        // for (int i = 1; i < 8; i++) {
+        // for (int[] move : queenMoves) {
+        // int y = piece.file + move[0] * i;
+        // int x = piece.rank + move[1] * i;
+
+        // if (state.board.pieceAt(y, x, state.player.other())) {
+        // Queen newQueen = new Queen(piece.player, y, x);
+        // if (isMoveLegal(state, piece, newQueen)) {
+        // State newMove = state.next(piece, newQueen);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+
+        // int[][] kingSurroundingSquares = generateQueenMoves();
+        // for (int[] square : kingSurroundingSquares) {
+        // int kingY = state.board.getKing(state.player.other()).file + square[0];
+        // int kingX = state.board.getKing(state.player.other()).rank + square[1];
+
+        // if (state.board.pieceAt(kingY, kingX, state.player.other())) {
+        // Queen newQueen = new Queen(piece.player, kingY, kingX);
+        // if (isMoveLegal(state, piece, newQueen)) {
+        // State newMove = state.next(piece, newQueen);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+
+        // if (piece.getClass() == King.class) {
+        // int[][] kingMoves = generateQueenMoves();
+
+        // for (int[] move : kingMoves) {
+        // int y = piece.file + move[0];
+        // int x = piece.rank + move[1];
+
+        // if (state.board.pieceAt(y, x, state.player.other())) {
+        // King newKing = new King(piece.player, y, x);
+        // if (isMoveLegal(state, piece, newKing)) {
+        // State newMove = state.next(piece, newKing);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+
+        // int[][] kingSurroundingSquares = generateQueenMoves();
+        // for (int[] square : kingSurroundingSquares) {
+        // int kingY = state.board.getKing(state.player.other()).file + square[0];
+        // int kingX = state.board.getKing(state.player.other()).rank + square[1];
+
+        // if (state.board.pieceAt(kingY, kingX, state.player.other())) {
+        // King newKing = new King(piece.player, kingY, kingX);
+        // if (isMoveLegal(state, piece, newKing)) {
+        // State newMove = state.next(piece, newKing);
+        // double value = evaluateState(newMove);
+        // long key = (long) value;
+
+        // if (!visitedStates.containsKey(key)) {
+        // children.add(newMove);
+        // visitedStates.put(key, newMove);
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+        // }
+
+        for (Piece piece : state.board) {
+            Iterator<State> it = state.next(piece).iterator();
+            while (it.hasNext() && !state.searchLimitReached()) {
+                State newState = it.next();
+                if (newState.board.countPieces() == newState.previous.board.countPieces() - 1) {
+                    double value = evaluateState(newState);
+                    long key = (long) value;
+
+                    if (!visitedStates.containsKey(key)) {
+                        children.add(newState);
+                        visitedStates.put(key, newState);
+                    }
+                }
+            }
+        }
+
+        ArrayList<Result> sortedChildren = new ArrayList<>();
+        for (State child : children) {
+            sortedChildren.add(new Result(child, evaluateState(child)));
+        }
+
+        sortedChildren.sort(Comparator.comparingDouble(result -> result.value));
+
+        return sortedChildren;
+    }
+
+    private int[][] generateQueenMoves() {
+        int[][] moves = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        return moves;
+    }
+
+    private int[][] generateRookMoves() {
+        int[][] moves = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+        return moves;
+    }
+
+    private int[][] generateBishopMoves() {
+        int[][] moves = { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        return moves;
+    }
+
+    private int[][] generateKnightMoves() {
+        int[][] moves = { { 2, 1 }, { 2, -1 }, { -2, 1 }, { -2, -1 }, { 1, 2 }, { 1, -2 }, { -1, 2 }, { -1, -2 } };
+        return moves;
+    }
+
+    private int[][] generatePawnMoves(Piece piece) {
+        int[][] moves = { { 1, 0 }, { 2, 0 }, { 1, 1 }, { 1, -1 } };
+        if (piece.player == Player.BLACK) {
+            for (int y = 0; y < moves.length; y++) {
+                for (int x = 0; x < moves[y].length; x++) {
+                    moves[y][x] *= -1;
+                }
+            }
+        }
+        return moves;
+    }
+
+    private double getPieceSquareValue(State state, Piece piece) {
+        // Values for square tables copied from
+        // https://www.chessprogramming.org/Simplified_Evaluation_Function
+
+        double value = 0;
+        boolean maximizingPlayer = piece.player == Player.WHITE;
+
+        if (piece.getClass() == Pawn.class) {
+            value += maximizingPlayer ? whitePawnPieceSquareTable[piece.file][piece.rank]
+                    : blackPawnPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Knight.class) {
+            value += maximizingPlayer ? whiteKnightPieceSquareTable[piece.file][piece.rank]
+                    : blackKnightPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Bishop.class) {
+            value += maximizingPlayer ? whiteBishopPieceSquareTable[piece.file][piece.rank]
+                    : blackBishopPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Rook.class) {
+            value += maximizingPlayer ? whiteRookPieceSquareTable[piece.file][piece.rank]
+                    : blackRookPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == Queen.class) {
+            value += maximizingPlayer ? whiteQueenPieceSquareTable[piece.file][piece.rank]
+                    : blackQueenPieceSquareTable[piece.file][piece.rank];
+        }
+        if (piece.getClass() == King.class) {
+            GamePhase gamePhase = determineGamePhase(state);
+            if (gamePhase == GamePhase.MIDDLEGAME) {
+                value += maximizingPlayer ? whiteKingMiddleGamePieceSquareTable[piece.file][piece.rank]
+                        : blackKingMiddleGamePieceSquareTable[piece.file][piece.rank];
+            } else {
+                value += maximizingPlayer ? whiteKingEndGamePieceSquareTable[piece.file][piece.rank]
+                        : blackKingEndGamePieceSquareTable[piece.file][piece.rank];
+            }
+        }
+
+        if (!maximizingPlayer) {
+            value *= -1;
+        }
+
+        return value;
+    }
+
+    private boolean isMoveLegal(State state, Piece from, Piece to) {
+        try {
+            if (!state.searchLimitReached()) {
+                state.next(from, to);
+                return true;
+            } else {
+                return false;
+            }
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     private enum GamePhase {
-        MIDDLE_GAME, END_GAME
+        MIDDLEGAME, THRESHOLD, ENDGAME
     }
 
     private GamePhase determineGamePhase(State state) {
@@ -421,227 +927,16 @@ public class Cawatso3 extends Bot {
         boolean whiteEndGame = (whiteQueenCount == 0) || (whiteQueenCount == 1 && whiteOtherPiecesCount <= 1);
         boolean blackEndGame = (blackQueenCount == 0) || (blackQueenCount == 1 && blackOtherPiecesCount <= 1);
 
+        boolean whiteThreshold = (whiteQueenCount == 1 && whiteOtherPiecesCount > 1 && whiteOtherPiecesCount <= 3);
+        boolean blackThreshold = (blackQueenCount == 1 && blackOtherPiecesCount > 1 && blackOtherPiecesCount <= 3);
+
         if (whiteEndGame && blackEndGame) {
-            return GamePhase.END_GAME;
+            return GamePhase.ENDGAME;
+        } else if (whiteThreshold || blackThreshold) {
+            return GamePhase.THRESHOLD;
         } else {
-            return GamePhase.MIDDLE_GAME;
+            return GamePhase.MIDDLEGAME;
         }
-    }
-
-    private double getPieceSquareValue(State state, Piece piece) {
-        // Values for square tables copied from
-        // https://www.chessprogramming.org/Simplified_Evaluation_Function
-
-        double value = 0;
-        boolean maximizingPlayer = piece.player == Player.WHITE;
-
-        if (piece.getClass() == Pawn.class) {
-            value += maximizingPlayer ? whitePawnPieceSquareTable[piece.file][piece.rank]
-                    : -blackPawnPieceSquareTable[piece.file][piece.rank];
-        }
-        if (piece.getClass() == Knight.class) {
-            value += maximizingPlayer ? whiteKnightPieceSquareTable[piece.file][piece.rank]
-                    : -blackKnightPieceSquareTable[piece.file][piece.rank];
-        }
-        if (piece.getClass() == Bishop.class) {
-            value += maximizingPlayer ? whiteBishopPieceSquareTable[piece.file][piece.rank]
-                    : -blackBishopPieceSquareTable[piece.file][piece.rank];
-        }
-        if (piece.getClass() == Rook.class) {
-            value += maximizingPlayer ? whiteRookPieceSquareTable[piece.file][piece.rank]
-                    : -blackRookPieceSquareTable[piece.file][piece.rank];
-        }
-        if (piece.getClass() == Queen.class) {
-            value += maximizingPlayer ? whiteQueenPieceSquareTable[piece.file][piece.rank]
-                    : -blackQueenPieceSquareTable[piece.file][piece.rank];
-        }
-        if (piece.getClass() == King.class) {
-            GamePhase gamePhase = determineGamePhase(state);
-            if (gamePhase == GamePhase.MIDDLE_GAME) {
-                value += maximizingPlayer ? whiteKingMiddleGamePieceSquareTable[piece.file][piece.rank]
-                        : -blackKingMiddleGamePieceSquareTable[piece.file][piece.rank];
-            } else {
-                value += maximizingPlayer ? whiteKingEndGamePieceSquareTable[piece.file][piece.rank]
-                        : -blackKingEndGamePieceSquareTable[piece.file][piece.rank];
-            }
-        }
-
-        return value;
-    }
-
-    private double mobilityScore(State state, Piece piece) {
-        // Idea for looping through possible moves taken from
-        // https://stackoverflow.com/questions/71594433/how-to-write-the-moves-the-knight-can-perform
-
-        double value = 0;
-        boolean maximizingPlayer = piece.player == Player.WHITE;
-
-        if (piece.getClass() == Pawn.class) {
-            if (maximizingPlayer) {
-                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 1, piece.rank)))
-                    value++;
-                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 1, piece.rank + 1)))
-                    value++;
-                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 1, piece.rank - 1)))
-                    value++;
-                if (piece.file == 1)
-                    if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file + 2, piece.rank)))
-                        value++;
-            } else {
-                if (piece.file == 6)
-                    if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 2, piece.rank)))
-                        value++;
-                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 1, piece.rank)))
-                    value++;
-                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 1, piece.rank + 1)))
-                    value++;
-                if (isMoveLegal(state, piece, new Pawn(piece.player, piece.file - 1, piece.rank - 1)))
-                    value++;
-            }
-        } else if (piece.getClass() == Knight.class) {
-            int[][] knightMoves = {
-                    { 2, 1 }, { 2, -1 }, { -2, 1 }, { -2, -1 },
-                    { 1, 2 }, { 1, -2 }, { -1, 2 }, { -1, -2 }
-            };
-            for (int[] move : knightMoves) {
-                if (isMoveLegal(state, piece, new Knight(piece.player, piece.file + move[0], piece.rank + move[1])))
-                    value++;
-            }
-        } else if (piece.getClass() == Bishop.class) {
-            int[][] bishopMoves = {
-                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
-            };
-            for (int[] move : bishopMoves) {
-                for (int i = 1; i < 8; i++) {
-                    if (isMoveLegal(state, piece,
-                            new Bishop(piece.player, piece.file + i * move[0], piece.rank + i * move[1])))
-                        value++;
-                }
-            }
-        } else if (piece.getClass() == Rook.class) {
-            int[][] rookMoves = {
-                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-            };
-            for (int[] move : rookMoves) {
-                for (int i = 1; i < 8; i++) {
-                    if (isMoveLegal(state, piece,
-                            new Rook(piece.player, piece.file + i * move[0], piece.rank + i * move[1])))
-                        value++;
-                }
-            }
-        } else if (piece.getClass() == Queen.class) {
-            int[][] queenMoves = {
-                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
-                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-            };
-            for (int[] move : queenMoves) {
-                for (int i = 1; i < 8; i++) {
-                    if (isMoveLegal(state, piece,
-                            new Queen(piece.player, piece.file + i * move[0], piece.rank + i * move[1])))
-                        value++;
-                }
-            }
-        } else if (piece.getClass() == King.class) {
-            int[][] kingMoves = {
-                    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
-                    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-            };
-            for (int[] move : kingMoves) {
-                if (isMoveLegal(state, piece, new King(piece.player, piece.file + move[0], piece.rank + move[1])))
-                    value++;
-            }
-        }
-
-        return value;
-    }
-
-    private boolean isMoveLegal(State state, Piece from, Piece to) {
-        try {
-            if (!state.searchLimitReached()) {
-                state.next(from, to);
-                return true;
-            } else {
-                return false;
-            }
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    private double evaluateKingSafety(State state) {
-        double value = 0;
-        King king = state.board.getKing(state.player);
-        boolean maximizingPlayer = state.player == Player.WHITE;
-
-        if (maximizingPlayer) {
-            int[] ranks = { king.rank - 1, king.rank, king.rank + 1 };
-            for (int rank : ranks) {
-                if (state.board.pieceAt(king.file + 1, rank)) {
-                    Piece piece = state.board.getPieceAt(king.file + 1, rank);
-                    if (piece.player == state.player && piece.getClass() == Pawn.class) {
-                        value++;
-                    } else {
-                        value--;
-                    }
-                }
-            }
-        } else {
-            int[] ranks = { king.rank - 1, king.rank, king.rank + 1 };
-            for (int rank : ranks) {
-                if (state.board.pieceAt(king.file - 1, rank)) {
-                    Piece piece = state.board.getPieceAt(king.file - 1, rank);
-                    if (piece.player == state.player && piece.getClass() == Pawn.class) {
-                        value++;
-                    } else {
-                        value--;
-                    }
-                }
-            }
-        }
-
-        for (Piece piece : state.board) {
-            if (piece.player != state.player) {
-                int ranks[] = { king.rank - 1, king.rank, king.rank + 1 };
-                int files[] = { king.file - 1, king.file, king.file + 1 };
-
-                for (int rank : ranks) {
-                    for (int file : files) {
-                        if (piece.getClass() == Pawn.class) {
-                            if (isMoveLegal(state, piece, new Pawn(piece.player, file, rank))) {
-                                value -= 2;
-                            }
-                        }
-                        if (piece.getClass() == Knight.class) {
-                            if (isMoveLegal(state, piece, new Knight(piece.player, file, rank))) {
-                                value -= 2;
-                            }
-                        }
-                        if (piece.getClass() == Bishop.class) {
-                            if (isMoveLegal(state, piece, new Bishop(piece.player, file, rank))) {
-                                value -= 2;
-                            }
-                        }
-                        if (piece.getClass() == Rook.class) {
-                            if (isMoveLegal(state, piece, new Rook(piece.player, file, rank))) {
-                                value -= 2;
-                            }
-                        }
-                        if (piece.getClass() == Queen.class) {
-                            if (isMoveLegal(state, piece, new Queen(piece.player, file, rank))) {
-                                value -= 2;
-                            }
-                        }
-                        if (piece.getClass() == King.class) {
-                            if (isMoveLegal(state, piece, new King(piece.player, file, rank))) {
-                                value -= 2;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return value;
     }
 
     private double[][] whitePawnPieceSquareTable = new double[][] {
@@ -806,5 +1101,4 @@ public class Cawatso3 extends Bot {
             this.value = value;
         }
     }
-
 }
